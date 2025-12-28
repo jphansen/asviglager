@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Temporary build artifacts
+.mypy_cache/
+
+# Archive folder
+# ARCHIVE/
