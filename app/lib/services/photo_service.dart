@@ -35,7 +35,7 @@ class PhotoService {
             headers: _headers,
             body: json.encode(body),
           )
-          .timeout(ApiConfig.timeout);
+          .timeout(const Duration(seconds: 60));  // Longer timeout for photo uploads
 
       if (response.statusCode == 201) {
         return Photo.fromJson(json.decode(response.body));
@@ -108,7 +108,7 @@ class PhotoService {
 
       final response = await http
           .post(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+          .timeout(const Duration(seconds: 30));  // Reasonable timeout
 
       if (response.statusCode != 204) {
         final error = json.decode(response.body);

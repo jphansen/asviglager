@@ -73,9 +73,9 @@ class _NewProductScreenState extends State<NewProductScreen> {
       final ImagePicker picker = ImagePicker();
       final XFile? photo = await picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
+        maxWidth: 800,  // Reduced from 1920
+        maxHeight: 600,  // Reduced from 1080
+        imageQuality: 60,  // Reduced from 85
       );
 
       if (photo != null) {
@@ -93,6 +93,12 @@ class _NewProductScreenState extends State<NewProductScreen> {
           // Convert image to base64
           final bytes = await imageFile.readAsBytes();
           final base64Image = base64Encode(bytes);
+          
+          // Check size and warn if too large
+          final sizeInMB = bytes.length / (1024 * 1024);
+          if (sizeInMB > 2) {
+            throw Exception('Image too large (${sizeInMB.toStringAsFixed(1)}MB). Please try again.');
+          }
           
           // Upload to backend
           final uploadedPhoto = await photoService.uploadPhoto(
