@@ -1,6 +1,6 @@
 """Product data models with flexible schema support."""
 from datetime import datetime
-from typing import Optional, Any, Dict, Annotated
+from typing import Optional, Any, Dict, List, Annotated
 from pydantic import BaseModel, Field, field_validator, ConfigDict, BeforeValidator
 from bson import ObjectId
 
@@ -47,6 +47,12 @@ class ProductBase(BaseModel):
     stock_warehouse: Optional[Dict[str, Dict[str, float]]] = Field(
         default_factory=dict,
         description="Stock quantities per warehouse. Key is warehouse ref, value contains stock data"
+    )
+    
+    # Photo references (list of photo IDs)
+    photos: Optional[List[str]] = Field(
+        default_factory=list,
+        description="List of photo IDs associated with this product"
     )
     
     # Timestamps

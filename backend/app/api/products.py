@@ -82,7 +82,13 @@ async def list_products(
     query = {"deleted": False}
     
     if search:
-        query["$text"] = {"$search": search}
+        # Use regex for partial matching (case-insensitive)
+        search_pattern = {"$regex": search, "$options": "i"}
+        query["$or"] = [
+            {"label": search_pattern},
+            {"ref": search_pattern},
+            {"barcode": search_pattern},
+        ]
     
     if type is not None:
         query["type"] = type
@@ -469,3 +475,130 @@ async def delete_product_stock_in_warehouse(
     )
     
     return None
+
+
+# ============================================================================
+# Photo Management Endpoints
+# ============================================================================
+
+@router.post("/{product_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def add_photo_to_product(
+    product_id: str,
+    photo_id: str,
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """Add a photo reference to a product."""
+    if not ObjectId.is_valid(product_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid product ID format"
+        )
+    
+    if not ObjectId.is_valid(photo_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid photo ID format"
+        )
+    
+    db = MongoDB.get_db()
+    products_collection = db.products
+    photos_collection = db.photos
+    
+    # Check if product exists
+    product = await products_collection.find_one({
+        "_id": ObjectId(product_id),
+        "deleted": False
+    })
+    
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+    
+    # Check if photo exists
+    photo = await photos_collection.find_one({"_id": ObjectId(photo_id)})
+    if not photo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Photo not found"
+        )
+    
+    # Add photo ID to product's photos array (if not already present)
+    await products_collection.update_one(
+        {"_id": ObjectId(product_id)},
+        {
+            "$addToSet": {"photos": photo_id},
+            "$set": {"date_modification": datetime.utcnow()}
+        }
+    )
+    
+    return None
+
+
+@router.delete("/{product_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_photo_from_product(
+    product_id: str,
+    photo_id: str,
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """Remove a photo reference from a product."""
+    if not ObjectId.is_valid(product_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid product ID format"
+        )
+    
+    db = MongoDB.get_db()
+    products_collection = db.products
+    
+    product = await products_collection.find_one({
+        "_id": ObjectId(product_id),
+        "deleted": False
+    })
+    
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+    
+    # Remove photo ID from product's photos array
+    await products_collection.update_one(
+        {"_id": ObjectId(product_id)},
+        {
+            "$pull": {"photos": photo_id},
+            "$set": {"date_modification": datetime.utcnow()}
+        }
+    )
+    
+    return None
+
+
+@router.get("/{product_id}/photos", response_model=List[str])
+async def get_product_photos(
+    product_id: str,
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """Get list of photo IDs for a product."""
+    if not ObjectId.is_valid(product_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid product ID format"
+        )
+    
+    db = MongoDB.get_db()
+    products_collection = db.products
+    
+    product = await products_collection.find_one({
+        "_id": ObjectId(product_id),
+        "deleted": False
+    })
+    
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+    
+    return product.get("photos", [])

@@ -9,6 +9,7 @@ from app.db.indexes import create_indexes
 from app.api.auth import router as auth_router
 from app.api.products import router as products_router
 from app.api.warehouses import router as warehouses_router
+from app.api.photos import router as photos_router
 
 
 @asynccontextmanager
@@ -53,6 +54,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix=settings.api_v1_prefix)
 app.include_router(products_router, prefix=settings.api_v1_prefix)
 app.include_router(warehouses_router, prefix=settings.api_v1_prefix)
+app.include_router(photos_router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/")

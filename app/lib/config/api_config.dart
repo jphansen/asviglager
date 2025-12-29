@@ -1,5 +1,5 @@
 class ApiConfig {
-  static const String baseUrl = 'http://127.0.0.1:8000/api/v1';  // Android emulator localhost
+  static const String baseUrl = 'http://vps05.asvig.com:8000/api/v1';  // Android emulator localhost
   // For physical device use: 'http://YOUR_COMPUTER_IP:8000/api/v1'
   
   static const Duration timeout = Duration(seconds: 30);

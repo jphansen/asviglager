@@ -1,6 +1,6 @@
 # Asviglager - Asset Management System
 
-A modern asset management system with a FastAPI backend and Flutter mobile application for managing products, warehouses, and inventory.
+A modern asset management system with a FastAPI backend and Flutter mobile application for managing products, warehouses, inventory, and product photos.
 
 ## Project Structure
 
@@ -17,23 +17,39 @@ asviglager/
 ### Backend (FastAPI + MongoDB)
 - **JWT Authentication**: Secure token-based authentication
 - **Products API**: Full CRUD operations for products
-  - List products with pagination
-  - Get product by ID or reference
+  - List products with pagination and partial-text search
+  - Get product by ID, reference, or barcode
   - Create, update, and delete products
-  - Search and filtering capabilities
+  - Auto-generated product IDs with format AA-YYMM-XXXXXX
+  - Product-photo relationship management
+- **Photo Management API**: Dedicated photo storage system
+  - Upload photos as base64 encoded images
+  - Link/unlink photos to products
+  - Retrieve photo metadata and full images
+  - Efficient storage with separate photo collection
 - **Warehouses API**: Complete warehouse location management
   - CRUD operations for warehouse locations
+  - Stock tracking per warehouse
   - Soft-delete support
 - **RESTful API**: Auto-generated OpenAPI documentation
 - **MongoDB Integration**: Async database operations with Motor
+- **Advanced Search**: Regex-based partial text search across products
 
 ### Mobile App (Flutter)
 - **Authentication**: Login with JWT token management
-- **Product Listing**: Browse all products with search functionality
+- **Product Listing**: Browse all products with advanced search
+  - Partial word search (e.g., "Tosh" finds "Toshiba")
+  - Pull-to-refresh functionality
 - **Product Creation**: Add new products with:
-  - Camera integration for product photos
-  - Barcode scanner for quick product identification
-- **Modern UI**: Dark theme with Material Design 3
+  - Auto-generated Product IDs (AA-YYMM-XXXXXX format)
+  - Camera integration for product photos with immediate upload
+  - Barcode scanner with improved handling
+  - Photo upload with progress indication
+  - Visual confirmation when photos are uploaded
+- **Modern UI**: 
+  - Compact welcome screen design
+  - Dark theme with Material Design 3
+  - Responsive layout
 - **Cross-platform**: Runs on Android, iOS, and Linux
 
 ## Quick Start
@@ -112,12 +128,22 @@ flutter build apk --debug
 - `POST /api/v1/auth/register` - Register new user
 
 ### Products
-- `GET /api/v1/products` - List all products (with pagination)
+- `GET /api/v1/products` - List all products (with pagination and search)
 - `GET /api/v1/products/{id}` - Get product by ID
 - `GET /api/v1/products/ref/{ref}` - Get product by reference
+- `GET /api/v1/products/barcode/{barcode}` - Get product by barcode
 - `POST /api/v1/products` - Create new product
 - `PUT /api/v1/products/{id}` - Update product
 - `DELETE /api/v1/products/{id}` - Soft delete product
+- `GET /api/v1/products/{id}/photos` - Get product's photo IDs
+- `POST /api/v1/products/{id}/photos/{photo_id}` - Link photo to product
+- `DELETE /api/v1/products/{id}/photos/{photo_id}` - Unlink photo from product
+
+### Photos
+- `POST /api/v1/photos` - Upload a new photo (base64 encoded)
+- `GET /api/v1/photos` - List all photos (metadata only)
+- `GET /api/v1/photos/{id}` - Get photo with full image data
+- `DELETE /api/v1/photos/{id}` - Delete a photo
 
 ### Warehouses
 - `GET /api/v1/warehouses` - List all warehouses
@@ -126,6 +152,8 @@ flutter build apk --debug
 - `POST /api/v1/warehouses` - Create new warehouse
 - `PUT /api/v1/warehouses/{id}` - Update warehouse
 - `DELETE /api/v1/warehouses/{id}` - Soft delete warehouse
+- `POST /api/v1/products/{product_id}/stock/{warehouse_ref}` - Update product stock in warehouse
+- `DELETE /api/v1/products/{product_id}/stock/{warehouse_ref}` - Remove product stock from warehouse
 
 ## Technology Stack
 

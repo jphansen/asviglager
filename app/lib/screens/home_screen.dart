@@ -30,7 +30,7 @@ class HomeScreen extends StatelessWidget {
             Card(
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                   gradient: LinearGradient(
                     colors: [
                       Theme.of(context).colorScheme.primary.withOpacity(0.1),
@@ -39,41 +39,48 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                         ),
                         child: Icon(
                           Icons.person_rounded,
-                          size: 40,
+                          size: 24,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Welcome back!',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Welcome back!',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                  ),
                             ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        authService.username ?? 'User',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
+                            Text(
+                              authService.username ?? 'User',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Expanded(
               child: GridView.count(
                 crossAxisCount: 2,

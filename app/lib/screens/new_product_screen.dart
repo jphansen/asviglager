@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../models/product.dart';
 import '../services/auth_service.dart';
 import '../services/product_service.dart';
+import '../services/photo_service.dart';
 
 class NewProductScreen extends StatefulWidget {
   const NewProductScreen({super.key});
@@ -23,7 +25,16 @@ class _NewProductScreenState extends State<NewProductScreen> {
   final _descriptionController = TextEditingController();
   
   File? _imageFile;
+  String? _uploadedPhotoId;
   bool _isLoading = false;
+  bool _isGeneratingId = false;
+  bool _isUploadingPhoto = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _generateProductId();
+  }
 
   @override
   void dispose() {
@@ -33,6 +44,28 @@ class _NewProductScreenState extends State<NewProductScreen> {
     _barcodeController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  void _generateProductId() {
+    setState(() => _isGeneratingId = true);
+    
+    try {
+      // Get current year and month
+      final now = DateTime.now();
+      final yearMonth = '${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}';
+      
+      // Use timestamp-based counter (seconds + milliseconds for uniqueness)
+      final counter = (now.second * 1000 + now.millisecond);
+      
+      // Generate product ID: AA-YYMM-XXXXXX
+      final productId = 'AA-$yearMonth-${counter.toString().padLeft(6, '0')}';
+      
+      setState(() {
+        _refController.text = productId;
+      });
+    } finally {
+      setState(() => _isGeneratingId = false);
+    }
   }
 
   Future<void> _takePicture() async {
@@ -46,9 +79,54 @@ class _NewProductScreenState extends State<NewProductScreen> {
       );
 
       if (photo != null) {
+        final imageFile = File(photo.path);
         setState(() {
-          _imageFile = File(photo.path);
+          _imageFile = imageFile;
+          _isUploadingPhoto = true;
         });
+
+        // Upload photo to backend immediately
+        try {
+          final authService = Provider.of<AuthService>(context, listen: false);
+          final photoService = PhotoService(authService.token!);
+          
+          // Convert image to base64
+          final bytes = await imageFile.readAsBytes();
+          final base64Image = base64Encode(bytes);
+          
+          // Upload to backend
+          final uploadedPhoto = await photoService.uploadPhoto(
+            filename: photo.name,
+            contentType: 'image/jpeg',
+            base64Data: base64Image,
+            description: 'Product photo',
+          );
+          
+          if (mounted) {
+            setState(() {
+              _uploadedPhotoId = uploadedPhoto.id;
+              _isUploadingPhoto = false;
+            });
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Photo uploaded successfully'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() => _isUploadingPhoto = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error uploading photo: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -106,7 +184,25 @@ class _NewProductScreenState extends State<NewProductScreen> {
         dateModification: DateTime.now(),
       );
 
-      await productService.createProduct(product);
+      final createdProduct = await productService.createProduct(product);
+
+      // Link photo to product if one was uploaded
+      if (_uploadedPhotoId != null) {
+        final photoService = PhotoService(authService.token!);
+        try {
+          await photoService.addPhotoToProduct(createdProduct.id, _uploadedPhotoId!);
+        } catch (e) {
+          // Photo linking failed, but product was created
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Product created but photo link failed: $e'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -119,10 +215,18 @@ class _NewProductScreenState extends State<NewProductScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+        
+        // Check if it's a duplicate ID conflict
+        if (errorMessage.contains('already exists') || errorMessage.contains('duplicate')) {
+          errorMessage = 'Product ID already exists. Please use a different ID or click the refresh button to generate a new one.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -148,7 +252,7 @@ class _NewProductScreenState extends State<NewProductScreen> {
             children: [
               // Product Image
               GestureDetector(
-                onTap: _takePicture,
+                onTap: _isUploadingPhoto ? null : _takePicture,
                 child: Container(
                   height: 200,
                   decoration: BoxDecoration(
@@ -159,29 +263,65 @@ class _NewProductScreenState extends State<NewProductScreen> {
                       width: 2,
                     ),
                   ),
-                  child: _imageFile != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.file(_imageFile!, fit: BoxFit.cover),
-                        )
-                      : Column(
+                  child: _isUploadingPhoto
+                      ? Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.camera_alt_rounded,
-                              size: 48,
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                            ),
+                            const CircularProgressIndicator(),
                             const SizedBox(height: 12),
                             Text(
-                              'Tap to take photo',
+                              'Uploading photo...',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                 fontSize: 16,
                               ),
                             ),
                           ],
-                        ),
+                        )
+                      : _imageFile != null
+                          ? Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.file(_imageFile!, fit: BoxFit.cover, width: double.infinity),
+                                ),
+                                if (_uploadedPhotoId != null)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.camera_alt_rounded,
+                                  size: 48,
+                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Tap to take photo',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -189,9 +329,23 @@ class _NewProductScreenState extends State<NewProductScreen> {
               // Product Reference (ID)
               TextFormField(
                 controller: _refController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Product ID / Reference *',
-                  prefixIcon: Icon(Icons.tag_rounded),
+                  prefixIcon: const Icon(Icons.tag_rounded),
+                  suffixIcon: _isGeneratingId
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.refresh_rounded),
+                          onPressed: _generateProductId,
+                          tooltip: 'Regenerate ID',
+                        ),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -291,11 +445,19 @@ class BarcodeScannerScreen extends StatefulWidget {
 
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   final MobileScannerController _controller = MobileScannerController();
+  bool _hasScanned = false;
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void _handleBarcode(String barcode) {
+    if (_hasScanned) return;
+    _hasScanned = true;
+    _controller.stop();
+    Navigator.pop(context, barcode);
   }
 
   @override
@@ -314,10 +476,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         controller: _controller,
         onDetect: (capture) {
           final List<Barcode> barcodes = capture.barcodes;
-          if (barcodes.isNotEmpty) {
+          if (barcodes.isNotEmpty && !_hasScanned) {
             final barcode = barcodes.first.rawValue;
             if (barcode != null) {
-              Navigator.pop(context, barcode);
+              _handleBarcode(barcode);
             }
           }
         },
