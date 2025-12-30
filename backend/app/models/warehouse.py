@@ -32,13 +32,13 @@ class WarehouseBase(BaseModel):
     
     # Optional core fields
     description: Optional[str] = Field(default=None, description="Warehouse description")
-    lieu: Optional[str] = Field(default=None, description="Location code")
+    short: Optional[str] = Field(default=None, description="Short location code (e.g., HED01)")
     address: Optional[str] = Field(default=None, description="Street address")
     zip: Optional[str] = Field(default=None, description="Postal code")
     town: Optional[str] = Field(default=None, description="City/town")
     phone: Optional[str] = Field(default=None, description="Phone number")
     fax: Optional[str] = Field(default=None, description="Fax number")
-    statut: str = Field(default="1", description="Warehouse status: 0=disabled, 1=enabled")
+    status: bool = Field(default=True, description="Warehouse status: true=enabled, false=disabled")
     fk_parent: Optional[str] = Field(default=None, description="Parent warehouse ID")
     
     # Soft delete fields
@@ -71,9 +71,6 @@ class WarehouseFull(WarehouseBase):
     entity: Optional[str] = Field(default=None)
     import_key: Optional[str] = Field(default=None)
     ref_ext: Optional[str] = Field(default=None, description="External reference")
-    
-    # Status fields
-    status: Optional[str] = Field(default=None)
     
     # Location fields
     country_id: Optional[str] = Field(default=None)

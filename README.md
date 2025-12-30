@@ -1,11 +1,12 @@
 # Asviglager - Asset Management System
 
-A modern asset management system with a FastAPI backend and Flutter mobile application for managing products, warehouses, inventory, and product photos.
+A modern warehouse inventory management system with a FastAPI backend, React web frontend, and Flutter mobile application for managing products, warehouses, inventory, and product photos.
 
 ## Project Structure
 
 ```
 asviglager/
+├── frontend/         # React + TypeScript web application
 ├── app/              # Flutter mobile application
 ├── backend/          # FastAPI backend with MongoDB
 ├── ARCHIVE/          # Legacy SQL scripts and development files
@@ -13,6 +14,23 @@ asviglager/
 ```
 
 ## Features
+
+### Web Frontend (React + TypeScript)
+- **Modern SPA**: Built with React 18, TypeScript, Material-UI
+- **Authentication**: JWT-based login with secure token management
+- **Product Management**:
+  - List products with real-time search and pagination
+  - View product details with photos
+  - Edit products with photo management (upload/remove)
+  - Delete products (soft delete)
+  - Drag-and-drop photo upload
+- **Warehouse Management**:
+  - Full CRUD operations for warehouses
+  - Search and filter warehouses
+  - View warehouse details with address/contact info
+  - Enable/disable warehouses
+- **Responsive Design**: Works on desktop, tablet, and mobile
+- **State Management**: TanStack Query for efficient data fetching and caching
 
 ### Backend (FastAPI + MongoDB)
 - **JWT Authentication**: Secure token-based authentication
@@ -28,7 +46,8 @@ asviglager/
   - Retrieve photo metadata and full images
   - Efficient storage with separate photo collection
 - **Warehouses API**: Complete warehouse location management
-  - CRUD operations for warehouse locations
+  - CRUD operations with short location codes
+  - Boolean status field (enabled/disabled)
   - Stock tracking per warehouse
   - Soft-delete support
 - **RESTful API**: Auto-generated OpenAPI documentation
@@ -59,6 +78,36 @@ asviglager/
 - MongoDB instance running
 - Flutter SDK (for mobile app development)
 - Android SDK (for building Android APK)
+
+### Frontend Setup (Web Application)
+
+1. Navigate to frontend directory:
+```bash
+cd frontend
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Configure API endpoint in `.env.development`:
+```env
+VITE_API_URL=http://vps05.asvig.com:8000/api/v1
+```
+
+4. Run the development server:
+```bash
+npm run dev
+```
+
+The web app will be available at `http://localhost:5173`
+
+5. Build for production:
+```bash
+npm run build
+npm run preview  # Preview production build
+```
 
 ### Backend Setup
 
@@ -165,7 +214,18 @@ flutter build apk --debug
 - **bcrypt 4.0.1**: Password hashing
 - **uvicorn**: ASGI server
 
-### Frontend
+### Web Frontend
+- **React 18**: Modern UI library
+- **TypeScript**: Type-safe JavaScript
+- **Vite 5**: Fast build tool
+- **Material-UI (MUI)**: Component library
+- **TanStack Query**: Server state management
+- **React Router v6**: Client-side routing
+- **React Hook Form + Zod**: Form handling with validation
+- **react-dropzone**: File upload with drag-and-drop
+- **Axios**: HTTP client with JWT interceptors
+
+### Mobile Frontend
 - **Flutter 3.38.5**: Cross-platform mobile framework
 - **Dart**: Programming language
 - **Provider**: State management
@@ -182,12 +242,33 @@ cd backend
 uv run python run.py  # Run with hot reload
 ```
 
+### Web Frontend Development
+```bash
+cd frontend
+npm run dev  # Run with hot reload
+npm run build  # Build for production
+npm run lint  # Run ESLint
+```
+
 ### Mobile App Development
 ```bash
 cd app
 flutter run  # Run with hot reload
 flutter test  # Run tests
 ```
+
+## Recent Changes
+
+### v0.2.0 (December 2024)
+- Added React web frontend with TypeScript
+- Implemented product management with photo upload (drag-and-drop)
+- Implemented full warehouse CRUD operations
+- Updated warehouse model:
+  - Renamed `lieu` field to `short` (location code)
+  - Renamed `statut` field to `status` with boolean type (enabled/disabled)
+- Enhanced photo management with inline viewing and editing
+- Added responsive Material-UI design matching Flutter app
+- Integrated TanStack Query for optimized data fetching
 
 ## Data Import
 

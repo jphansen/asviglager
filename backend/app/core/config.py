@@ -38,7 +38,7 @@ class Settings(BaseSettings):
         description="API v1 route prefix"
     )
     cors_origins: List[str] = Field(
-        default=["http://localhost:3000"],
+        default=["http://localhost:3000", "http://localhost:5173"],
         description="Allowed CORS origins"
     )
     
