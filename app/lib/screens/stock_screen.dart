@@ -45,13 +45,30 @@ class _StockScreenState extends State<StockScreen> {
       final token = authService.token!;
 
       final productService = ProductService(token);
-      final products = await productService.getProducts(limit: 1000);
+      
+      // Load all products in batches since backend limits to 100 per request
+      List<Product> allProducts = [];
+      int skip = 0;
+      const int batchSize = 100;
+      bool hasMore = true;
+      
+      while (hasMore) {
+        final batch = await productService.getProducts(skip: skip, limit: batchSize);
+        allProducts.addAll(batch);
+        
+        if (batch.length < batchSize) {
+          hasMore = false;
+        } else {
+          skip += batchSize;
+        }
+      }
+      
       final warehouses = await WarehouseService.getWarehouses(token);
 
       setState(() {
-        _products = products;
+        _products = allProducts;
         _warehouses = warehouses.where((w) => w.status && !w.deleted).toList();
-        _filteredProducts = products;
+        _filteredProducts = allProducts;
         _isLoading = false;
       });
     } catch (e) {
