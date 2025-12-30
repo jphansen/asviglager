@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Container,
@@ -19,6 +19,7 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
+  Snackbar,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -31,13 +32,18 @@ import {
 import { productService } from '../services/productService';
 import ProductDetailDialog from '../components/products/ProductDetailDialog';
 import ProductEditDialog from '../components/products/ProductEditDialog';
+import DeleteConfirmDialog from '../components/common/DeleteConfirmDialog';
 import type { Product } from '../types';
 
 const ProductsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [editProductId, setEditProductId] = useState<string | null>(null);
+  const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  const queryClient = useQueryClient();
 
   // Debounce search
   React.useEffect(() => {
@@ -53,6 +59,19 @@ const ProductsPage: React.FC = () => {
       search: debouncedSearch || undefined,
       limit: 100 
     }),
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (productId: string) => productService.deleteProduct(productId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setSuccessMessage('Product deleted successfully');
+      setDeleteProduct(null);
+    },
+    onError: (error) => {
+      console.error('Failed to delete product:', error);
+    },
   });
 
   const formatPrice = (price: number) => {
@@ -201,11 +220,7 @@ const ProductsPage: React.FC = () => {
                       <IconButton
                         size="small"
                         color="error"
-                        onClick={() => {
-                          if (confirm(`Delete product ${product.label}?`)) {
-                            alert('Delete functionality - to be implemented');
-                          }
-                        }}
+                        onClick={() => setDeleteProduct(product)}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -250,6 +265,45 @@ const ProductsPage: React.FC = () => {
           open={!!editProductId}
           onClose={() => setEditProductId(null)}
         />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteProduct && (
+        <DeleteConfirmDialog
+          open={!!deleteProduct}
+          title="Delete Product"
+          message="Are you sure you want to delete this product? This will soft-delete the product and it can be recovered from deleted products."
+          itemName={`${deleteProduct.ref} - ${deleteProduct.label}`}
+          onConfirm={() => deleteMutation.mutate(deleteProduct.id || deleteProduct._id!)}
+          onCancel={() => setDeleteProduct(null)}
+          isDeleting={deleteMutation.isPending}
+        />
+      )}
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={4000}
+        onClose={() => setSuccessMessage(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSuccessMessage(null)} severity="success" sx={{ width: '100%' }}>
+          {successMessage}
+        </Alert>
+      </Snackbar>
+
+      {/* Delete Error Snackbar */}
+      {deleteMutation.isError && (
+        <Snackbar
+          open={deleteMutation.isError}
+          autoHideDuration={6000}
+          onClose={() => deleteMutation.reset()}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert onClose={() => deleteMutation.reset()} severity="error" sx={{ width: '100%' }}>
+            Failed to delete product: {(deleteMutation.error as Error).message}
+          </Alert>
+        </Snackbar>
       )}
     </Container>
   );
