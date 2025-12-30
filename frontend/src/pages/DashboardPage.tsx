@@ -14,6 +14,7 @@ import {
   Warehouse as WarehouseIcon,
   TrendingUp as TrendingUpIcon,
   Category as CategoryIcon,
+  ShoppingCart as StockIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -94,6 +95,14 @@ const DashboardPage: React.FC = () => {
             icon={<WarehouseIcon sx={{ fontSize: 32 }} />}
             color="secondary.main"
             onClick={() => navigate('/warehouses')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <DashboardCard
+            title="Stock"
+            icon={<StockIcon sx={{ fontSize: 32 }} />}
+            color="success.main"
+            onClick={() => navigate('/stock')}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>

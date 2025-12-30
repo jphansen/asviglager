@@ -48,24 +48,23 @@ export const productService = {
     return response.data;
   },
 
-  async updateStock(id: string, stockUpdate: StockUpdate): Promise<Product> {
-    const response = await api.put<Product>(`/products/${id}/stock`, stockUpdate);
+  async updateStock(productId: string, warehouseRef: string, stockUpdate: StockUpdate): Promise<Product> {
+    const response = await api.put<Product>(`/products/${productId}/stock/${warehouseRef}`, stockUpdate);
     return response.data;
   },
 
-  async getStock(id: string): Promise<Record<string, number>> {
-    const response = await api.get<Record<string, number>>(`/products/${id}/stock`);
+  async getStock(id: string): Promise<Record<string, { items: number }>> {
+    const response = await api.get<Record<string, { items: number }>>(`/products/${id}/stock`);
     return response.data;
   },
 
-  async getStockForWarehouse(id: string, warehouseId: string): Promise<number> {
-    const response = await api.get<number>(`/products/${id}/stock/${warehouseId}`);
+  async getStockForWarehouse(id: string, warehouseRef: string): Promise<{ items: number }> {
+    const response = await api.get<{ items: number }>(`/products/${id}/stock/${warehouseRef}`);
     return response.data;
   },
 
-  async removeStock(id: string, warehouseId: string): Promise<Product> {
-    const response = await api.delete<Product>(`/products/${id}/stock/${warehouseId}`);
-    return response.data;
+  async removeStock(productId: string, warehouseRef: string): Promise<void> {
+    await api.delete(`/products/${productId}/stock/${warehouseRef}`);
   },
 
   async linkPhoto(id: string, photoId: string): Promise<Product> {

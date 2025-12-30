@@ -17,6 +17,10 @@ export interface TokenResponse {
   token_type: string;
 }
 
+export interface WarehouseStock {
+  items: number;
+}
+
 export interface Product {
   id?: string;
   _id?: string; // MongoDB ID field
@@ -28,9 +32,11 @@ export interface Product {
   barcode?: string;
   description?: string;
   status: '0' | '1'; // 0=disabled, 1=enabled
+  status_buy?: '0' | '1';
   tobuy?: string;
   deleted?: boolean;
-  stock?: Record<string, number>; // warehouse_id -> quantity
+  stock?: Record<string, number>; // warehouse_id -> quantity (deprecated)
+  stock_warehouse?: Record<string, WarehouseStock>; // warehouse_ref -> stock details
   photos?: string[]; // photo IDs
   date_creation?: string;
   date_modification?: string;
@@ -91,6 +97,7 @@ export interface WarehouseCreate {
 
 export interface Photo {
   id?: string;
+  _id?: string; // MongoDB ID field
   filename: string;
   content_type: string;
   description?: string;
@@ -108,8 +115,9 @@ export interface PhotoUpload {
 }
 
 export interface StockUpdate {
-  warehouse_id: string;
-  quantity: number;
+  warehouse_id?: string; // deprecated
+  quantity?: number; // deprecated
+  items: number; // new format
 }
 
 export interface PaginationParams {

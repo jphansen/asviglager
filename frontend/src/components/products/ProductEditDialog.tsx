@@ -147,8 +147,12 @@ const ProductEditDialog: React.FC<ProductEditDialogProps> = ({
           description: `Photo for ${product?.label}`,
         });
 
-        // Link to product
-        await productService.linkPhoto(productId, uploadedPhoto.id!);
+        // Link to product (handle both id and _id from backend)
+        const photoId = uploadedPhoto.id || (uploadedPhoto as any)._id;
+        if (!photoId) {
+          throw new Error('Photo ID not returned from server');
+        }
+        await productService.linkPhoto(productId, photoId);
         
         // Refresh product data
         queryClient.invalidateQueries({ queryKey: ['product', productId] });
@@ -212,33 +216,36 @@ const ProductEditDialog: React.FC<ProductEditDialogProps> = ({
                 {/* Existing Photos */}
                 {photos && photos.length > 0 && (
                   <Grid container spacing={2} sx={{ mb: 2 }}>
-                    {photos.map((photo: Photo) => (
-                      <Grid item xs={12} sm={6} md={4} key={photo.id}>
-                        <Card sx={{ position: 'relative' }}>
-                          <CardMedia
-                            component="img"
-                            height="150"
-                            image={`data:${photo.content_type};base64,${photo.data}`}
-                            alt={photo.filename}
-                            sx={{ objectFit: 'contain', bgcolor: '#f5f5f5' }}
-                          />
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => handleDeletePhoto(photo.id!)}
-                            sx={{
-                              position: 'absolute',
-                              top: 4,
-                              right: 4,
-                              bgcolor: 'rgba(255,255,255,0.9)',
-                              '&:hover': { bgcolor: 'rgba(255,255,255,1)' },
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Card>
-                      </Grid>
-                    ))}
+                    {photos.map((photo: Photo) => {
+                      const photoId = photo.id || (photo as any)._id;
+                      return (
+                        <Grid item xs={12} sm={6} md={4} key={photoId}>
+                          <Card sx={{ position: 'relative' }}>
+                            <CardMedia
+                              component="img"
+                              height="150"
+                              image={`data:${photo.content_type};base64,${photo.data}`}
+                              alt={photo.filename}
+                              sx={{ objectFit: 'contain', bgcolor: '#f5f5f5' }}
+                            />
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleDeletePhoto(photoId)}
+                              sx={{
+                                position: 'absolute',
+                                top: 4,
+                                right: 4,
+                                bgcolor: 'rgba(255,255,255,0.9)',
+                                '&:hover': { bgcolor: 'rgba(255,255,255,1)' },
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Card>
+                        </Grid>
+                      );
+                    })}
                   </Grid>
                 )}
 

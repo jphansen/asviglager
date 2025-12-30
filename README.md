@@ -29,6 +29,12 @@ asviglager/
   - Search and filter warehouses
   - View warehouse details with address/contact info
   - Enable/disable warehouses
+- **Stock Management**:
+  - View all products with stock levels across warehouses
+  - Add/update/remove stock for products at specific warehouse locations
+  - Real-time stock totals and location breakdown
+  - Search products by reference, name, or barcode
+  - Visual stock indicators and location chips
 - **Responsive Design**: Works on desktop, tablet, and mobile
 - **State Management**: TanStack Query for efficient data fetching and caching
 
@@ -184,6 +190,10 @@ flutter build apk --debug
 - `POST /api/v1/products` - Create new product
 - `PUT /api/v1/products/{id}` - Update product
 - `DELETE /api/v1/products/{id}` - Soft delete product
+- `GET /api/v1/products/{id}/stock` - Get all stock for a product
+- `GET /api/v1/products/{id}/stock/{warehouse_ref}` - Get stock at specific warehouse
+- `PUT /api/v1/products/{id}/stock/{warehouse_ref}` - Update stock at warehouse
+- `DELETE /api/v1/products/{id}/stock/{warehouse_ref}` - Remove stock from warehouse
 - `GET /api/v1/products/{id}/photos` - Get product's photo IDs
 - `POST /api/v1/products/{id}/photos/{photo_id}` - Link photo to product
 - `DELETE /api/v1/products/{id}/photos/{photo_id}` - Unlink photo from product
@@ -201,8 +211,6 @@ flutter build apk --debug
 - `POST /api/v1/warehouses` - Create new warehouse
 - `PUT /api/v1/warehouses/{id}` - Update warehouse
 - `DELETE /api/v1/warehouses/{id}` - Soft delete warehouse
-- `POST /api/v1/products/{product_id}/stock/{warehouse_ref}` - Update product stock in warehouse
-- `DELETE /api/v1/products/{product_id}/stock/{warehouse_ref}` - Remove product stock from warehouse
 
 ## Technology Stack
 
@@ -263,10 +271,16 @@ flutter test  # Run tests
 - Added React web frontend with TypeScript
 - Implemented product management with photo upload (drag-and-drop)
 - Implemented full warehouse CRUD operations
+- **Added stock management system**:
+  - View all products with stock levels across warehouses
+  - Add/update/remove stock at specific warehouse locations
+  - Stock tracking with `stock_warehouse` field structure
+  - Real-time stock totals and location breakdown
 - Updated warehouse model:
   - Renamed `lieu` field to `short` (location code)
   - Renamed `statut` field to `status` with boolean type (enabled/disabled)
 - Enhanced photo management with inline viewing and editing
+- Fixed photo upload issue with MongoDB `_id` field handling
 - Added responsive Material-UI design matching Flutter app
 - Integrated TanStack Query for optimized data fetching
 

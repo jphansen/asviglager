@@ -25,6 +25,7 @@ import {
   Dashboard as DashboardIcon,
   AccountCircle,
   Logout as LogoutIcon,
+  ShoppingCart as StockIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -40,6 +41,7 @@ const menuItems: MenuItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Products', icon: <InventoryIcon />, path: '/products' },
   { text: 'Warehouses', icon: <WarehouseIcon />, path: '/warehouses' },
+  { text: 'Stock', icon: <StockIcon />, path: '/stock' },
 ];
 
 const MainLayout: React.FC = () => {

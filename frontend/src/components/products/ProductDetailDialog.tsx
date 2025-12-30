@@ -102,26 +102,29 @@ const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                   Photos ({photos.length})
                 </Typography>
                 <Grid container spacing={2}>
-                  {photos.map((photo: Photo, index: number) => (
-                    <Grid item xs={12} sm={6} md={4} key={photo.id || index}>
-                      <Card>
-                        <CardMedia
-                          component="img"
-                          height="200"
-                          image={`data:${photo.content_type};base64,${photo.data}`}
-                          alt={photo.filename}
-                          sx={{ objectFit: 'contain', bgcolor: '#f5f5f5' }}
-                        />
-                        {photo.description && (
-                          <Box p={1}>
-                            <Typography variant="caption" color="text.secondary">
-                              {photo.description}
-                            </Typography>
-                          </Box>
-                        )}
-                      </Card>
-                    </Grid>
-                  ))}
+                  {photos.map((photo: Photo, index: number) => {
+                    const photoId = photo.id || (photo as any)._id || index;
+                    return (
+                      <Grid item xs={12} sm={6} md={4} key={photoId}>
+                        <Card>
+                          <CardMedia
+                            component="img"
+                            height="200"
+                            image={`data:${photo.content_type};base64,${photo.data}`}
+                            alt={photo.filename}
+                            sx={{ objectFit: 'contain', bgcolor: '#f5f5f5' }}
+                          />
+                          {photo.description && (
+                            <Box p={1}>
+                              <Typography variant="caption" color="text.secondary">
+                                {photo.description}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Card>
+                      </Grid>
+                    );
+                  })}
                 </Grid>
                 {photosLoading && (
                   <Box display="flex" justifyContent="center" py={2}>
