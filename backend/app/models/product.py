@@ -68,13 +68,10 @@ class ProductBase(BaseModel):
     @field_validator("barcode")
     @classmethod
     def validate_barcode(cls, v):
-        """Validate barcode format if provided."""
+        """Normalize barcode if provided."""
         if v is not None and v != "":
             # Remove whitespace
             v = v.strip()
-            # Check if it's numeric and has reasonable length (EAN-13 or similar)
-            if not v.isdigit() or len(v) not in [8, 12, 13, 14]:
-                raise ValueError("Barcode must be 8, 12, 13, or 14 digits")
         return v
     
     @field_validator("stock_warehouse", mode="before")
