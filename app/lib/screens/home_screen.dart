@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import 'products_screen.dart';
 import 'new_product_screen.dart';
+import 'stock_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -111,6 +112,20 @@ class HomeScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const NewProductScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _MenuCard(
+                    icon: Icons.warehouse_rounded,
+                    title: 'Stock',
+                    subtitle: 'Manage inventory',
+                    color: const Color(0xFFFF9800),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const StockScreen(),
                         ),
                       );
                     },

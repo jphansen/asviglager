@@ -10,6 +10,7 @@ class Product {
   final String status;
   final String statusBuy;
   final bool deleted;
+  final Map<String, WarehouseStock>? stockWarehouse;
   final DateTime dateCreation;
   final DateTime dateModification;
 
@@ -25,11 +26,22 @@ class Product {
     required this.status,
     required this.statusBuy,
     required this.deleted,
+    this.stockWarehouse,
     required this.dateCreation,
     required this.dateModification,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    Map<String, WarehouseStock>? stockWarehouse;
+    if (json['stock_warehouse'] != null && json['stock_warehouse'] is Map) {
+      stockWarehouse = {};
+      (json['stock_warehouse'] as Map<String, dynamic>).forEach((key, value) {
+        if (value is Map<String, dynamic>) {
+          stockWarehouse![key] = WarehouseStock.fromJson(value);
+        }
+      });
+    }
+
     return Product(
       id: json['_id'] as String,
       ref: json['ref'] as String,
@@ -42,9 +54,15 @@ class Product {
       status: json['status'] as String,
       statusBuy: json['status_buy'] as String,
       deleted: json['deleted'] as bool,
+      stockWarehouse: stockWarehouse,
       dateCreation: DateTime.parse(json['date_creation'] as String),
       dateModification: DateTime.parse(json['date_modification'] as String),
     );
+  }
+
+  int getTotalStock() {
+    if (stockWarehouse == null) return 0;
+    return stockWarehouse!.values.fold(0, (sum, stock) => sum + stock.items.toInt());
   }
 
   Map<String, dynamic> toJson() {
@@ -67,5 +85,23 @@ class Product {
     if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
+  }
+}
+
+class WarehouseStock {
+  final double items;
+
+  WarehouseStock({required this.items});
+
+  factory WarehouseStock.fromJson(Map<String, dynamic> json) {
+    return WarehouseStock(
+      items: (json['items'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'items': items,
+    };
   }
 }

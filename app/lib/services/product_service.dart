@@ -79,4 +79,68 @@ class ProductService {
       throw Exception('Error creating product: $e');
     }
   }
+
+  Future<Product> updateStock(String productId, String warehouseRef, double items) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock/$warehouseRef');
+
+      final response = await http
+          .put(
+            uri,
+            headers: _headers,
+            body: json.encode({'items': items}),
+          )
+          .timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        return Product.fromJson(json.decode(response.body));
+      } else {
+        final error = json.decode(response.body);
+        throw Exception(error['detail'] ?? 'Failed to update stock');
+      }
+    } catch (e) {
+      throw Exception('Error updating stock: $e');
+    }
+  }
+
+  Future<Map<String, WarehouseStock>> getStock(String productId) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock');
+
+      final response = await http
+          .get(uri, headers: _headers)
+          .timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        Map<String, WarehouseStock> stock = {};
+        data.forEach((key, value) {
+          if (value is Map<String, dynamic>) {
+            stock[key] = WarehouseStock.fromJson(value);
+          }
+        });
+        return stock;
+      } else {
+        throw Exception('Failed to load stock');
+      }
+    } catch (e) {
+      throw Exception('Error fetching stock: $e');
+    }
+  }
+
+  Future<void> removeStock(String productId, String warehouseRef) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock/$warehouseRef');
+
+      final response = await http
+          .delete(uri, headers: _headers)
+          .timeout(ApiConfig.timeout);
+
+      if (response.statusCode != 204) {
+        throw Exception('Failed to remove stock');
+      }
+    } catch (e) {
+      throw Exception('Error removing stock: $e');
+    }
+  }
 }
