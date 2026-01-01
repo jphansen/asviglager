@@ -16,14 +16,16 @@ asviglager/
 ## Features
 
 ### Web Frontend (React + TypeScript)
+- **Modern Dark Theme**: Sleek dark UI with deep blue gradients and cyan accents
 - **Modern SPA**: Built with React 18, TypeScript, Material-UI
 - **Authentication**: JWT-based login with secure token management
 - **Product Management**:
   - List products with real-time search and pagination
   - View product details with photos
   - Edit products with photo management (upload/remove)
-  - Delete products (soft delete)
+  - Delete products with confirmation dialog (soft delete)
   - Drag-and-drop photo upload
+  - Barcode support (accepts any format)
 - **Warehouse Management**:
   - Full CRUD operations for warehouses
   - Search and filter warehouses
@@ -35,8 +37,16 @@ asviglager/
   - Real-time stock totals and location breakdown
   - Search products by reference, name, or barcode
   - Visual stock indicators and location chips
-- **Responsive Design**: Works on desktop, tablet, and mobile
-- **State Management**: TanStack Query for efficient data fetching and caching
+- **Modern UI/UX**:
+  - Professional dark theme with custom styling
+  - Enhanced shadows, borders, and hover effects
+  - CORS Configuration**: Flexible cross-origin support for development
+- **Products API**: Full CRUD operations for products
+  - List products with pagination and partial-text search
+  - Get product by ID, reference, or barcode
+  - Create, update, and delete products
+  - Auto-generated product IDs with format AA-YYMM-XXXXXX
+  - Flexible barcode validation (accepts any format) fetching and caching
 
 ### Backend (FastAPI + MongoDB)
 - **JWT Authentication**: Secure token-based authentication
@@ -63,12 +73,18 @@ asviglager/
 ### Mobile App (Flutter)
 - **Authentication**: Login with JWT token management
 - **Product Listing**: Browse all products with advanced search
-  - Partial word search (e.g., "Tosh" finds "Toshiba")
-  - Pull-to-refresh functionality
+  - Batch loading (100 products at a time) to handle large inventories
 - **Product Creation**: Add new products with:
   - Auto-generated Product IDs (AA-YYMM-XXXXXX format)
   - Camera integration for product photos with immediate upload
-  - Barcode scanner with improved handling
+  - Barcode scanner (accepts any format - no validation)
+  - Photo upload with progress indication
+  - Visual confirmation when photos are uploaded
+- **Stock Management**:
+  - View all products with stock levels
+  - Add/update/remove stock at warehouse locations
+  - Batch loading to avoid API limits
+  - Real-time stock totals per warehouse
   - Photo upload with progress indication
   - Visual confirmation when photos are uploaded
 - **Modern UI**: 
@@ -259,6 +275,7 @@ npm run lint  # Run ESLint
 ```
 
 ### Mobile App Development
+
 ```bash
 cd app
 flutter run  # Run with hot reload
@@ -266,6 +283,26 @@ flutter test  # Run tests
 ```
 
 ## Recent Changes
+
+### v0.3.0 (January 2025)
+- **Modern Dark Theme**: Applied professional dark theme to web frontend
+  - Deep blue gradient backgrounds (#0A0E27, #141B3D)
+  - Bright cyan primary color (#00E5FF)
+  - Enhanced shadows, borders, and hover effects
+  - Custom styled scrollbars
+  - Improved typography with Inter font
+- **Enhanced Product Management**:
+  - Added delete product functionality with confirmation dialog
+  - Success/error notifications with Snackbars
+  - Removed barcode validation constraints (accepts any format)
+- **CORS Configuration**: Fixed cross-origin issues for remote API access
+- **Flutter Stock Management**: 
+  - Implemented complete stock management in mobile app
+  - Fixed 422 errors with batch loading (100 products per request)
+- **Bug Fixes**:
+  - Fixed photo upload MongoDB `_id` field handling
+  - Fixed Flutter stock screen pagination issues
+  - Improved error handling across all platforms
 
 ### v0.2.0 (December 2024)
 - Added React web frontend with TypeScript
@@ -283,6 +320,19 @@ flutter test  # Run tests
 - Fixed photo upload issue with MongoDB `_id` field handling
 - Added responsive Material-UI design matching Flutter app
 - Integrated TanStack Query for optimized data fetching
+
+### v0.3.1 (January 2025)
+- **README Updates**: Enhanced documentation with detailed feature descriptions
+  - Added comprehensive feature breakdown for web frontend
+  - Updated mobile app features with batch loading and stock management details
+  - Fixed markdown formatting issues
+- **Flutter Model Improvements**: 
+  - Added `_parseDouble` helper method in `product.dart` for robust stock item parsing
+  - Better handling of numeric values from API responses
+- **Android Build Configuration**:
+  - Updated Gradle wrapper to version 8.12 for compatibility
+  - Added NOTICE file for Android build
+- **Documentation Cleanup**: Fixed broken sections and improved overall README structure
 
 ## Data Import
 
