@@ -115,7 +115,7 @@ npm install
 
 3. Configure API endpoint in `.env.development`:
 ```env
-VITE_API_URL=http://vps05.asvig.com:8000/api/v1
+VITE_API_URL=https://stock.asvig.com/api/v1
 ```
 
 4. Run the development server:
@@ -284,6 +284,45 @@ flutter test  # Run tests
 
 ## Recent Changes
 
+### v0.4.0 (January 2026)
+- **JWT Refresh Token System**:
+  - Added 30-day refresh tokens alongside 24-hour access tokens
+  - Implemented automatic token refresh on 401 errors
+  - Created ApiClient wrapper in Flutter for seamless token management
+  - Updated backend `/auth/refresh` endpoint
+  - Refactored all Flutter service classes to use ApiClient
+- **UI Improvements**:
+  - Redesigned Flutter home screen with button-style menu layout
+  - Added clickable user info card with server health status
+  - Connected health check to `/health` endpoint
+- **Pagination & Search Enhancements**:
+  - Added server-side pagination (50 items per page) to Products and Stock pages
+  - Implemented debounced search with backend queries
+  - Search now queries entire database (not just loaded records)
+  - Added page navigation controls with prev/next buttons
+  - Fixed stock page to match products page pagination
+- **Dolibarr Data Migration**:
+  - Created complete migration pipeline from Dolibarr to Asviglager
+  - `fetch_products_api.py`: Export products, categories, and documents
+  - `fetch_product_categories.py`: Extract product-category mappings
+  - `download_documents.py`: Download and decode document files
+  - `import_categories.py`: Import categories as warehouses
+  - `import_products.py`: Import products with stock and photos
+  - Successful import of 198 products with stock and images
+
+### v0.3.1 (January 2025)
+- **README Updates**: Enhanced documentation with detailed feature descriptions
+  - Added comprehensive feature breakdown for web frontend
+  - Updated mobile app features with batch loading and stock management details
+  - Fixed markdown formatting issues
+- **Flutter Model Improvements**: 
+  - Added `_parseDouble` helper method in `product.dart` for robust stock item parsing
+  - Better handling of numeric values from API responses
+- **Android Build Configuration**:
+  - Updated Gradle wrapper to version 8.12 for compatibility
+  - Added NOTICE file for Android build
+- **Documentation Cleanup**: Fixed broken sections and improved overall README structure
+
 ### v0.3.0 (January 2025)
 - **Modern Dark Theme**: Applied professional dark theme to web frontend
   - Deep blue gradient backgrounds (#0A0E27, #141B3D)
@@ -334,9 +373,25 @@ flutter test  # Run tests
   - Added NOTICE file for Android build
 - **Documentation Cleanup**: Fixed broken sections and improved overall README structure
 
-## Data Import
+## Data Migration from Dolibarr
 
-The `ARCHIVE/` folder contains legacy data import scripts:
+The `doli/` directory contains scripts for migrating data from Dolibarr ERP to Asviglager:
+
+1. **Export from Dolibarr**:
+   ```bash
+   cd doli
+   python fetch_products_api.py  # Exports products, categories, documents
+   python fetch_product_categories.py  # Extracts category mappings
+   python download_documents.py  # Downloads product photos
+   ```
+
+2. **Import to Asviglager**:
+   ```bash
+   python import_categories.py <username> <password>  # Import categories as warehouses
+   python import_products.py <username> <password>    # Import products with stock and photos
+   ```
+
+The `ARCHIVE/` folder contains legacy SQL scripts and development files.
 - `fetch_products_api.py`: Import products from Dolibarr API
 - Various SQL files: Historical database schemas and data
 

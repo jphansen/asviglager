@@ -8,6 +8,7 @@ import '../models/product.dart';
 import '../services/auth_service.dart';
 import '../services/product_service.dart';
 import '../services/photo_service.dart';
+import '../services/api_client.dart';
 
 class NewProductScreen extends StatefulWidget {
   const NewProductScreen({super.key});
@@ -88,7 +89,8 @@ class _NewProductScreenState extends State<NewProductScreen> {
         // Upload photo to backend immediately
         try {
           final authService = Provider.of<AuthService>(context, listen: false);
-          final photoService = PhotoService(authService.token!);
+          final apiClient = ApiClient(authService);
+          final photoService = PhotoService(apiClient);
           
           // Convert image to base64
           final bytes = await imageFile.readAsBytes();
@@ -165,7 +167,8 @@ class _NewProductScreenState extends State<NewProductScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final productService = ProductService(authService.token!);
+      final apiClient = ApiClient(authService);
+      final productService = ProductService(apiClient);
 
       double? price;
       if (_priceController.text.isNotEmpty) {
@@ -194,7 +197,7 @@ class _NewProductScreenState extends State<NewProductScreen> {
 
       // Link photo to product if one was uploaded
       if (_uploadedPhotoId != null) {
-        final photoService = PhotoService(authService.token!);
+        final photoService = PhotoService(apiClient);
         try {
           await photoService.addPhotoToProduct(createdProduct.id, _uploadedPhotoId!);
         } catch (e) {

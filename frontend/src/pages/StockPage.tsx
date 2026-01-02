@@ -16,6 +16,7 @@ import {
   Chip,
   CircularProgress,
   Alert,
+  Pagination,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -29,27 +30,35 @@ import StockEditDialog from '../components/stock/StockEditDialog';
 
 const StockPage: React.FC = () => {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
+  const itemsPerPage = 50;
+
+  // Debounce search
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // Reset to first page when search changes
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const { data: products, isLoading: productsLoading, error: productsError } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => productService.getProducts(),
+    queryKey: ['products', debouncedSearch, page],
+    queryFn: () => productService.getProducts({ 
+      search: debouncedSearch || undefined,
+      skip: (page - 1) * itemsPerPage,
+      limit: itemsPerPage
+    }),
   });
 
   const { data: warehouses, isLoading: warehousesLoading } = useQuery({
     queryKey: ['warehouses'],
     queryFn: () => warehouseService.getWarehouses(),
   });
-
-  const filteredProducts = products?.filter(product => {
-    const searchLower = search.toLowerCase();
-    return (
-      product.ref.toLowerCase().includes(searchLower) ||
-      product.label.toLowerCase().includes(searchLower) ||
-      product.barcode?.toLowerCase().includes(searchLower)
-    );
-  }) || [];
 
   const handleEditStock = (product: Product) => {
     setSelectedProduct(product);
@@ -128,16 +137,16 @@ const StockPage: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredProducts.length === 0 ? (
+            {!products || products.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   <Typography color="text.secondary" py={4}>
-                    {search ? 'No products found matching your search' : 'No products available'}
+                    {debouncedSearch ? 'No products found matching your search' : 'No products available'}
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredProducts.map((product) => {
+              products.map((product) => {
                 const productId = product.id || product._id;
                 const totalStock = getTotalStock(product);
 
@@ -201,6 +210,20 @@ const StockPage: React.FC = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Pagination */}
+      {products && products.length > 0 && (
+        <Box display="flex" justifyContent="center" mt={3}>
+          <Pagination 
+            count={products.length === itemsPerPage ? page + 1 : page}
+            page={page}
+            onChange={(_, newPage) => setPage(newPage)}
+            color="primary"
+            showFirstButton
+            showLastButton
+          />
+        </Box>
+      )}
 
       {selectedProduct && (
         <StockEditDialog

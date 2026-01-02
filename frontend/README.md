@@ -32,7 +32,7 @@ npm install
 The frontend uses different API URLs for development and production:
 
 - **Development**: `http://localhost:8000/api/v1` (from `.env.development`)
-- **Production**: `http://vps05.asvig.com:8000/api/v1` (from `.env.production`)
+- **Production**: `https://stock.asvig.com/api/v1` (from `.env.production`)
 
 To override, create a `.env.local` file:
 

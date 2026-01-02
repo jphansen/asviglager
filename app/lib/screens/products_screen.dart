@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/product.dart';
 import '../services/auth_service.dart';
 import '../services/product_service.dart';
+import '../services/api_client.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -37,7 +38,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final productService = ProductService(authService.token!);
+      final apiClient = ApiClient(authService);
+      final productService = ProductService(apiClient);
       final products = await productService.getProducts(limit: 100, search: search);
 
       if (mounted) {

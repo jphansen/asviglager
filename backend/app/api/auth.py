@@ -2,11 +2,13 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 
-from app.models.user import Token, User, UserCreate, UserInDB
+from app.models.user import Token, User, UserCreate, UserInDB, RefreshTokenRequest
 from app.core.security import (
     authenticate_user,
     create_access_token,
+    create_refresh_token,
     get_password_hash,
     get_current_active_user
 )
@@ -36,7 +38,74 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         expires_delta=access_token_expires
     )
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token_expires = timedelta(days=settings.jwt_refresh_token_expire_days)
+    refresh_token = create_refresh_token(
+        data={"sub": user.username},
+        expires_delta=refresh_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "refresh_token": refresh_token
+    }
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(refresh_request: RefreshTokenRequest):
+    """
+    Refresh access token using refresh token.
+    Returns a new access token if the refresh token is valid.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate refresh token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        # Decode and validate refresh token
+        payload = jwt.decode(
+            refresh_request.refresh_token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm]
+        )
+        username: str = payload.get("sub")
+        token_type: str = payload.get("type")
+        
+        # Verify it's a refresh token
+        if username is None or token_type != "refresh":
+            raise credentials_exception
+            
+    except JWTError:
+        raise credentials_exception
+    
+    # Verify user still exists and is active
+    db = MongoDB.get_db()
+    users_collection = db.users
+    user_data = await users_collection.find_one({"username": username})
+    
+    if user_data is None:
+        raise credentials_exception
+    
+    user = UserInDB(**user_data)
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
+        )
+    
+    # Create new access token
+    access_token_expires = timedelta(minutes=settings.jwt_access_token_expire_minutes)
+    access_token = create_access_token(
+        data={"sub": user.username},
+        expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API Base URL - update this to match your backend
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://vps05.asvig.com:8000/api/v1';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://stock.asvig.com/api/v1';
 
 // Create axios instance
 const api = axios.create({

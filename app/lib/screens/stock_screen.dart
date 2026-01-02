@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/product_service.dart';
 import '../services/warehouse_service.dart';
+import '../services/api_client.dart';
 import '../models/product.dart';
 import '../models/warehouse.dart';
 
@@ -42,9 +43,9 @@ class _StockScreenState extends State<StockScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final token = authService.token!;
+      final apiClient = ApiClient(authService);
 
-      final productService = ProductService(token);
+      final productService = ProductService(apiClient);
       
       // Load all products in batches since backend limits to 100 per request
       List<Product> allProducts = [];
@@ -63,7 +64,7 @@ class _StockScreenState extends State<StockScreen> {
         }
       }
       
-      final warehouses = await WarehouseService.getWarehouses(token);
+      final warehouses = await WarehouseService.getWarehouses(apiClient);
 
       setState(() {
         _products = allProducts;
@@ -379,7 +380,8 @@ class _StockEditDialogState extends State<_StockEditDialog> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final productService = ProductService(authService.token!);
+      final apiClient = ApiClient(authService);
+      final productService = ProductService(apiClient);
 
       await productService.updateStock(widget.product.id, _selectedWarehouse!, items);
 
@@ -406,7 +408,8 @@ class _StockEditDialogState extends State<_StockEditDialog> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final productService = ProductService(authService.token!);
+      final apiClient = ApiClient(authService);
+      final productService = ProductService(apiClient);
 
       await productService.removeStock(widget.product.id, warehouseRef);
 

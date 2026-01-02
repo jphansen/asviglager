@@ -1,17 +1,12 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/warehouse.dart';
+import 'api_client.dart';
 
 class WarehouseService {
-  static Future<List<Warehouse>> getWarehouses(String token) async {
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/warehouses/'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+  static Future<List<Warehouse>> getWarehouses(ApiClient apiClient) async {
+    final url = '${ApiConfig.baseUrl}/warehouses/';
+    final response = await apiClient.get(url);
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
@@ -21,14 +16,9 @@ class WarehouseService {
     }
   }
 
-  static Future<Warehouse> getWarehouse(String token, String id) async {
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/warehouses/$id'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+  static Future<Warehouse> getWarehouse(ApiClient apiClient, String id) async {
+    final url = '${ApiConfig.baseUrl}/warehouses/$id';
+    final response = await apiClient.get(url);
 
     if (response.statusCode == 200) {
       return Warehouse.fromJson(json.decode(response.body));

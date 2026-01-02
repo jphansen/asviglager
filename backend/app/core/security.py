@@ -56,6 +56,35 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Create a JWT refresh token with longer expiration.
+    
+    Args:
+        data: Dictionary containing the data to encode
+        expires_delta: Optional expiration time delta
+    
+    Returns:
+        Encoded JWT refresh token string
+    """
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(
+            days=settings.jwt_refresh_token_expire_days
+        )
+    
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm
+    )
+    return encoded_jwt
+
+
 async def authenticate_user(username: str, password: str) -> Optional[UserInDB]:
     """
     Authenticate a user by username and password.

@@ -1,17 +1,12 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/api_config.dart';
 import '../models/photo.dart';
+import 'api_client.dart';
 
 class PhotoService {
-  final String token;
+  final ApiClient apiClient;
 
-  PhotoService(this.token);
-
-  Map<String, String> get _headers => {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      };
+  PhotoService(this.apiClient);
 
   Future<Photo> uploadPhoto({
     required String filename,
@@ -20,7 +15,7 @@ class PhotoService {
     String? description,
   }) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/photos');
+      final url = '${ApiConfig.baseUrl}/photos';
 
       final body = {
         'filename': filename,
@@ -29,13 +24,7 @@ class PhotoService {
         if (description != null) 'description': description,
       };
 
-      final response = await http
-          .post(
-            uri,
-            headers: _headers,
-            body: json.encode(body),
-          )
-          .timeout(const Duration(seconds: 60));  // Longer timeout for photo uploads
+      final response = await apiClient.post(url, body: body);
 
       if (response.statusCode == 201) {
         return Photo.fromJson(json.decode(response.body));
@@ -50,11 +39,8 @@ class PhotoService {
 
   Future<List<PhotoMetadata>> listPhotos() async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/photos');
-
-      final response = await http
-          .get(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}/photos';
+      final response = await apiClient.get(url);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -69,11 +55,8 @@ class PhotoService {
 
   Future<Photo> getPhoto(String photoId) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/photos/$photoId');
-
-      final response = await http
-          .get(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}/photos/$photoId';
+      final response = await apiClient.get(url);
 
       if (response.statusCode == 200) {
         return Photo.fromJson(json.decode(response.body));
@@ -87,11 +70,8 @@ class PhotoService {
 
   Future<void> deletePhoto(String photoId) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/photos/$photoId');
-
-      final response = await http
-          .delete(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}/photos/$photoId';
+      final response = await apiClient.delete(url);
 
       if (response.statusCode != 204) {
         final error = json.decode(response.body);
@@ -104,11 +84,8 @@ class PhotoService {
 
   Future<void> addPhotoToProduct(String productId, String photoId) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/products/$productId/photos/$photoId');
-
-      final response = await http
-          .post(uri, headers: _headers)
-          .timeout(const Duration(seconds: 30));  // Reasonable timeout
+      final url = '${ApiConfig.baseUrl}/products/$productId/photos/$photoId';
+      final response = await apiClient.post(url);
 
       if (response.statusCode != 204) {
         final error = json.decode(response.body);
@@ -121,11 +98,8 @@ class PhotoService {
 
   Future<void> removePhotoFromProduct(String productId, String photoId) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/products/$productId/photos/$photoId');
-
-      final response = await http
-          .delete(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}/products/$productId/photos/$photoId';
+      final response = await apiClient.delete(url);
 
       if (response.statusCode != 204) {
         final error = json.decode(response.body);
@@ -138,11 +112,8 @@ class PhotoService {
 
   Future<List<String>> getProductPhotos(String productId) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/products/$productId/photos');
-
-      final response = await http
-          .get(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}/products/$productId/photos';
+      final response = await apiClient.get(url);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);

@@ -31,6 +31,10 @@ class Settings(BaseSettings):
         default=1440,  # 24 hours
         description="JWT access token expiration time in minutes"
     )
+    jwt_refresh_token_expire_days: int = Field(
+        default=30,  # 30 days
+        description="JWT refresh token expiration time in days"
+    )
     
     # API Configuration
     api_v1_prefix: str = Field(

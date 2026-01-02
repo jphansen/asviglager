@@ -41,8 +41,14 @@ class Token(BaseModel):
     """Token response model."""
     access_token: str
     token_type: str = "bearer"
+    refresh_token: Optional[str] = None
 
 
 class TokenData(BaseModel):
     """Token payload data."""
     username: Optional[str] = None
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request model for token refresh."""
+    refresh_token: str

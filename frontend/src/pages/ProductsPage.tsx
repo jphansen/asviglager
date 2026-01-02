@@ -20,6 +20,7 @@ import {
   Alert,
   Tooltip,
   Snackbar,
+  Pagination,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -41,23 +42,27 @@ const ProductsPage: React.FC = () => {
   const [editProductId, setEditProductId] = useState<string | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
+  const itemsPerPage = 50;
   const queryClient = useQueryClient();
 
   // Debounce search
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
+      setPage(1); // Reset to first page when search changes
     }, 500);
     return () => clearTimeout(timer);
   }, [search]);
 
   const { data: products, isLoading, error } = useQuery({
-    queryKey: ['products', debouncedSearch],
+    queryKey: ['products', debouncedSearch, page],
     queryFn: () => productService.getProducts({ 
       search: debouncedSearch || undefined,
-      limit: 100 
+      skip: (page - 1) * itemsPerPage,
+      limit: itemsPerPage
     }),
   });
 
@@ -244,8 +249,16 @@ const ProductsPage: React.FC = () => {
       {products && products.length > 0 && (
         <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            Showing {products.length} product{products.length !== 1 ? 's' : ''}
+            Showing {products.length} product{products.length !== 1 ? 's' : ''} (Page {page})
           </Typography>
+          <Pagination 
+            count={products.length === itemsPerPage ? page + 1 : page}
+            page={page}
+            onChange={(_, newPage) => setPage(newPage)}
+            color="primary"
+            showFirstButton
+            showLastButton
+          />
         </Box>
       )}
 

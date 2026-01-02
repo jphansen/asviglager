@@ -1,17 +1,12 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/api_config.dart';
 import '../models/product.dart';
+import 'api_client.dart';
 
 class ProductService {
-  final String token;
+  final ApiClient apiClient;
 
-  ProductService(this.token);
-
-  Map<String, String> get _headers => {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      };
+  ProductService(this.apiClient);
 
   Future<List<Product>> getProducts({int skip = 0, int limit = 50, String? search}) async {
     try {
@@ -21,12 +16,8 @@ class ProductService {
         if (search != null && search.isNotEmpty) 'search': search,
       };
 
-      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.products}')
-          .replace(queryParameters: queryParams);
-
-      final response = await http
-          .get(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}';
+      final response = await apiClient.get(url, queryParams: queryParams);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -41,11 +32,8 @@ class ProductService {
 
   Future<Product> getProductByRef(String ref) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productByRef}/$ref');
-
-      final response = await http
-          .get(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}${ApiConfig.productByRef}/$ref';
+      final response = await apiClient.get(url);
 
       if (response.statusCode == 200) {
         return Product.fromJson(json.decode(response.body));
@@ -59,15 +47,8 @@ class ProductService {
 
   Future<Product> createProduct(Product product) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.products}');
-
-      final response = await http
-          .post(
-            uri,
-            headers: _headers,
-            body: json.encode(product.toJson()),
-          )
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}';
+      final response = await apiClient.post(url, body: product.toJson());
 
       if (response.statusCode == 201) {
         return Product.fromJson(json.decode(response.body));
@@ -82,15 +63,8 @@ class ProductService {
 
   Future<Product> updateStock(String productId, String warehouseRef, double items) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock/$warehouseRef');
-
-      final response = await http
-          .put(
-            uri,
-            headers: _headers,
-            body: json.encode({'items': items}),
-          )
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock/$warehouseRef';
+      final response = await apiClient.put(url, body: {'items': items});
 
       if (response.statusCode == 200) {
         return Product.fromJson(json.decode(response.body));
@@ -105,11 +79,8 @@ class ProductService {
 
   Future<Map<String, WarehouseStock>> getStock(String productId) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock');
-
-      final response = await http
-          .get(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock';
+      final response = await apiClient.get(url);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -130,11 +101,8 @@ class ProductService {
 
   Future<void> removeStock(String productId, String warehouseRef) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock/$warehouseRef');
-
-      final response = await http
-          .delete(uri, headers: _headers)
-          .timeout(ApiConfig.timeout);
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock/$warehouseRef';
+      final response = await apiClient.delete(url);
 
       if (response.statusCode != 204) {
         throw Exception('Failed to remove stock');
