@@ -64,18 +64,25 @@ export interface ProductUpdate {
   tobuy?: string;
 }
 
+export type WarehouseType = 'warehouse' | 'location' | 'container';
+export type ContainerType = 'box' | 'case' | 'suitcase' | 'ikea_box' | 'ikea_case' | 
+  'storage_bin' | 'wrap' | 'pallet' | 'shelf' | 'drawer' | 'other';
+
 export interface Warehouse {
   id?: string;
   _id?: string; // MongoDB ID field
   ref: string;
   label: string;
+  type: WarehouseType;
   description?: string;
   short?: string; // Short location code
-  address?: string;
-  zip?: string;
-  town?: string;
-  phone?: string;
-  fax?: string;
+  address?: string;  // Only for warehouse type
+  zip?: string;      // Only for warehouse type
+  town?: string;     // Only for warehouse type
+  phone?: string;    // Only for warehouse type
+  fax?: string;      // Only for warehouse type
+  container_type?: ContainerType;  // Only for container type
+  fk_parent?: string;  // Parent ObjectId
   status: boolean; // true=enabled, false=disabled
   deleted?: boolean;
   date_creation?: string;
@@ -85,6 +92,7 @@ export interface Warehouse {
 export interface WarehouseCreate {
   ref: string;
   label: string;
+  type: WarehouseType;
   description?: string;
   short?: string;
   address?: string;
@@ -92,6 +100,8 @@ export interface WarehouseCreate {
   town?: string;
   phone?: string;
   fax?: string;
+  container_type?: ContainerType;
+  fk_parent?: string;
   status?: boolean;
 }
 

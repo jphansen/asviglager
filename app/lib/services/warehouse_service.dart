@@ -26,4 +26,61 @@ class WarehouseService {
       throw Exception('Failed to load warehouse: ${response.statusCode}');
     }
   }
+
+  static Future<List<Warehouse>> getWarehousesByType(
+    ApiClient apiClient,
+    WarehouseType type,
+  ) async {
+    final url = '${ApiConfig.baseUrl}/warehouses/type/${type.toJson()}';
+    final response = await apiClient.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((json) => Warehouse.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load warehouses by type: ${response.statusCode}');
+    }
+  }
+
+  static Future<List<Warehouse>> getChildren(
+    ApiClient apiClient,
+    String parentId,
+  ) async {
+    final url = '${ApiConfig.baseUrl}/warehouses/$parentId/children';
+    final response = await apiClient.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((json) => Warehouse.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load children: ${response.statusCode}');
+    }
+  }
+
+  static Future<List<Warehouse>> getHierarchyPath(
+    ApiClient apiClient,
+    String warehouseId,
+  ) async {
+    final url = '${ApiConfig.baseUrl}/warehouses/$warehouseId/path';
+    final response = await apiClient.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((json) => Warehouse.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load hierarchy path: ${response.statusCode}');
+    }
+  }
+
+  static Future<List<String>> getContainerTypes(ApiClient apiClient) async {
+    final url = '${ApiConfig.baseUrl}/warehouses/container-types/list';
+    final response = await apiClient.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.cast<String>();
+    } else {
+      throw Exception('Failed to load container types: ${response.statusCode}');
+    }
+  }
 }

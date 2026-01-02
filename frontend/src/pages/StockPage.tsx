@@ -34,6 +34,7 @@ const StockPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [containerPaths, setContainerPaths] = useState<Record<string, string>>({});
   
   const itemsPerPage = 50;
 
@@ -60,6 +61,38 @@ const StockPage: React.FC = () => {
     queryFn: () => warehouseService.getWarehouses(),
   });
 
+  // Load hierarchy paths for all containers referenced in products
+  React.useEffect(() => {
+    const loadContainerPaths = async () => {
+      if (!products || !warehouses) return;
+
+      const containerRefs = new Set<string>();
+      products.forEach(product => {
+        if (product.stock_warehouse) {
+          Object.keys(product.stock_warehouse).forEach(ref => containerRefs.add(ref));
+        }
+      });
+
+      const paths: Record<string, string> = {};
+      for (const ref of containerRefs) {
+        try {
+          const container = warehouses.find(w => w.ref === ref);
+          if (container && container.id) {
+            const hierarchyPath = await warehouseService.getHierarchyPath(container.id);
+            paths[ref] = hierarchyPath.map(item => item.label).join(' > ');
+          } else {
+            paths[ref] = ref; // Fallback to ref if container not found
+          }
+        } catch (error) {
+          paths[ref] = ref; // Fallback on error
+        }
+      }
+      setContainerPaths(paths);
+    };
+
+    loadContainerPaths();
+  }, [products, warehouses]);
+
   const handleEditStock = (product: Product) => {
     setSelectedProduct(product);
     setEditDialogOpen(true);
@@ -76,6 +109,11 @@ const StockPage: React.FC = () => {
       (sum, stock) => sum + stock.items,
       0
     );
+  };
+
+  const getContainerLabel = (warehouseRef: string): string => {
+    // Return full hierarchy path if available, otherwise fallback to warehouse label or ref
+    return containerPaths[warehouseRef] || getWarehouseLabel(warehouseRef);
   };
 
   const getWarehouseLabel = (warehouseRef: string): string => {
@@ -181,9 +219,10 @@ const StockPage: React.FC = () => {
                           {Object.entries(product.stock_warehouse).map(([warehouseRef, stock]) => (
                             <Chip
                               key={warehouseRef}
-                              label={`${getWarehouseLabel(warehouseRef)}: ${stock.items}`}
+                              label={`${getContainerLabel(warehouseRef)}: ${stock.items}`}
                               size="small"
                               variant="outlined"
+                              title={`Container: ${warehouseRef}`}
                             />
                           ))}
                         </Box>

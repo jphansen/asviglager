@@ -6,6 +6,7 @@ import '../services/warehouse_service.dart';
 import '../services/api_client.dart';
 import '../models/product.dart';
 import '../models/warehouse.dart';
+import '../widgets/container_selector.dart';
 
 class StockScreen extends StatefulWidget {
   const StockScreen({super.key});
@@ -354,11 +355,57 @@ class _StockEditDialogState extends State<_StockEditDialog> {
   final TextEditingController _stockController = TextEditingController();
   bool _isUpdating = false;
   String _error = '';
+  Map<String, String> _containerPaths = {}; // Cache for hierarchy paths
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContainerPaths();
+  }
 
   @override
   void dispose() {
     _stockController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadContainerPaths() async {
+    final currentStock = widget.product.stockWarehouse ?? {};
+    if (currentStock.isEmpty) return;
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final apiClient = ApiClient(authService);
+
+      final paths = <String, String>{};
+      for (final containerRef in currentStock.keys) {
+        try {
+          // Find container by ref
+          final container = widget.warehouses.firstWhere(
+            (w) => w.ref == containerRef,
+            orElse: () => throw Exception('Container not found'),
+          );
+          
+          // Get hierarchy path
+          final hierarchyPath = await WarehouseService.getHierarchyPath(
+            apiClient,
+            container.id,
+          );
+          
+          paths[containerRef] = hierarchyPath.map((w) => w.label).join(' > ');
+        } catch (e) {
+          paths[containerRef] = containerRef; // Fallback to ref on error
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _containerPaths = paths;
+        });
+      }
+    } catch (e) {
+      // Silently fail - not critical
+    }
   }
 
   Future<void> _updateStock() async {
@@ -429,6 +476,12 @@ class _StockEditDialogState extends State<_StockEditDialog> {
   }
 
   String _getWarehouseLabel(String warehouseRef) {
+    // Return cached hierarchy path if available
+    if (_containerPaths.containsKey(warehouseRef)) {
+      return _containerPaths[warehouseRef]!;
+    }
+    
+    // Fallback to warehouse label
     final warehouse = widget.warehouses.firstWhere(
       (w) => w.ref == warehouseRef,
       orElse: () => Warehouse(
@@ -608,22 +661,16 @@ class _StockEditDialogState extends State<_StockEditDialog> {
                     ),
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
+              ContainerSelector(
                 value: _selectedWarehouse,
-                decoration: const InputDecoration(
-                  labelText: 'Warehouse',
-                ),
-                items: widget.warehouses.map((warehouse) {
-                  return DropdownMenuItem(
-                    value: warehouse.ref,
-                    child: Text('${warehouse.label} (${warehouse.ref})'),
-                  );
-                }).toList(),
                 onChanged: _isUpdating
                     ? null
                     : (value) {
                         setState(() => _selectedWarehouse = value);
                       },
+                apiClient: ApiClient(Provider.of<AuthService>(context, listen: false)),
+                labelText: 'Select Container',
+                enabled: !_isUpdating,
               ),
               const SizedBox(height: 12),
               TextField(

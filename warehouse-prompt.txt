@@ -1,0 +1,60 @@
+Plan: Three-Tier Warehouse System Refactoring (Updated)
+TL;DR: Restructure flat warehouse system into Warehouse → Location → Container hierarchy with immediate migration. All existing warehouses become containers under "Default Warehouse" → "Default Location". Add type field and utilize fk_parent for hierarchy. Container types become dedicated field with predefined list (extensible). Product stock references remain unchanged.
+
+Steps
+Backend Schema Evolution - Add hierarchy and container types to warehouse model
+
+Add type enum field to WarehouseBase: 'warehouse', 'location', 'container'
+Add container_type field (optional, only for containers)
+Utilize existing fk_parent field for parent ObjectId
+Remove address fields from Location and Container types (validation)
+Add indexes on type and fk_parent
+Create ContainerType enum/model with predefined types: 'box', 'case', 'ikea_box', 'storage_bin', 'wrap', 'other'
+Data Migration Script - Convert all warehouses to containers under default hierarchy
+
+Create migrate_warehouse_hierarchy.py
+Create "Default Warehouse" record (type='warehouse') with company address
+Create "Default Location" record (type='location', fk_parent=warehouse_id)
+Update ALL existing warehouse records: set type='container', fk_parent=location_id
+Parse existing labels to detect container types and set container_type field
+Product stock_warehouse keys unchanged (still container refs)
+Print migration summary
+Backend API Enhancements - Hierarchy navigation and container type management
+
+Update warehouses.py: add type filter to list endpoint
+Add GET /warehouses/type/{type} for filtering
+Add GET /warehouses/{id}/children for hierarchy navigation
+Add GET /warehouses/{id}/path returning full path array [warehouse, location, container]
+Add GET /container-types endpoint returning predefined types + custom ones from DB
+Add validation: warehouse no parent, location parent must be warehouse, container parent must be location
+Update create/update endpoints to validate type-specific fields
+Frontend Cascading Selector - Three-level warehouse/location/container picker
+
+Update Warehouse type with type, fk_parent, container_type
+Create ContainerSelector.tsx component with cascading dropdowns
+First dropdown: warehouses (type='warehouse'), second: locations under selected warehouse, third: containers under selected location
+Update StockEditDialog to use ContainerSelector
+Show full path in stock displays: "Default Warehouse / Default Location / BOX61 (Box)"
+Add container type selector with predefined list + "Add New" option
+Frontend Warehouse Management - Tree view and CRUD for all three levels
+
+Update WarehousesPage with tree/hierarchical view
+Show warehouses → locations → containers in expandable tree
+Add/Edit dialogs: show different fields based on type (warehouse has address, container has type)
+Container type dropdown with common types + custom entry field
+Display container type badges in listings
+Flutter App Updates - Mobile hierarchy support
+
+Update Warehouse model with type, fkParent, containerType
+Create cascading selector widget for container selection
+Update StockScreen to show full path
+Update WarehouseService with hierarchy methods
+Stock editing uses three-level selection (warehouse → location → container)
+Implementation starts with:
+Backend model changes
+Migration script
+Run migration
+Backend API updates
+Frontend updates
+Flutter updates
+Should I proceed with implementing these changes starting with the backend model and migration script?
