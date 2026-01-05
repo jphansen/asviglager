@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
 import '../config/api_config.dart';
@@ -9,8 +10,28 @@ import 'products_screen.dart';
 import 'new_product_screen.dart';
 import 'stock_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String? _buildNumber;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBuildNumber();
+  }
+
+  Future<void> _loadBuildNumber() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      _buildNumber = info.buildNumber;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,11 +96,25 @@ class HomeScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    'Welcome back!',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Welcome back!',
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                            ),
+                                      ),
+                                      if (_buildNumber != null) ..[
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Build #$_buildNumber',
+                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+                                                fontSize: 10,
+                                              ),
                                         ),
+                                      ],
+                                    ],
                                   ),
                                   Text(
                                     authService.username ?? 'User',
@@ -291,11 +326,20 @@ class _UserInfoDialogState extends State<_UserInfoDialog> {
   Map<String, dynamic>? _healthData;
   bool _loadingHealth = true;
   String? _healthError;
+  PackageInfo? _packageInfo;
 
   @override
   void initState() {
     super.initState();
     _loadServerHealth();
+    _loadPackageInfo();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      _packageInfo = info;
+    });
   }
 
   Future<void> _loadServerHealth() async {
@@ -366,6 +410,26 @@ class _UserInfoDialogState extends State<_UserInfoDialog> {
               ],
             ),
             const SizedBox(height: 24),
+            // App Information Section
+            if (_packageInfo != null) ..[
+              _InfoSection(
+                title: 'App Information',
+                items: [
+                  _InfoItem(
+                    icon: Icons.apps,
+                    label: 'Version',
+                    value: _packageInfo!.version,
+                  ),
+                  _InfoItem(
+                    icon: Icons.build,
+                    label: 'Build Number',
+                    value: _packageInfo!.buildNumber,
+                    valueColor: Theme.of(context).colorScheme.primary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
             // Server Health Section
             _InfoSection(
               title: 'Server Status',

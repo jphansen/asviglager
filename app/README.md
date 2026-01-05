@@ -51,6 +51,42 @@ flutter run
 2. Connect via USB
 3. Run: `flutter run`
 
+## Building the App
+
+### Build with Automatic Build Number Increment
+
+To build the app with automatic build number increment:
+
+```bash
+# Build APK (default)
+./build_with_increment.sh
+
+# Build App Bundle
+./build_with_increment.sh appbundle
+
+# Build Debug APK
+./build_with_increment.sh debug
+```
+
+The script will:
+1. Automatically increment the build number in `pubspec.yaml`
+2. Run `flutter pub get` to update dependencies
+3. Build the app with the specified target
+
+### Manual Build Number Increment
+
+If you want to increment the build number without building:
+
+```bash
+./increment_build.sh
+```
+
+### View Build Number
+
+The current build number is displayed:
+- In the "Welcome back" tile on the home screen (e.g., "Build #42")
+- In the User Information dialog (tap the user info card)
+
 ## Default Login
 
 Use the credentials configured in your backend:
