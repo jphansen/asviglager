@@ -19,6 +19,7 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
+  Stack,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -26,6 +27,9 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
+  Warehouse as WarehouseIcon,
+  LocationOn as LocationIcon,
+  Inventory as ContainerIcon,
 } from '@mui/icons-material';
 import { warehouseService } from '../services/warehouseService';
 import WarehouseDetailDialog from '../components/warehouses/WarehouseDetailDialog';
@@ -69,6 +73,45 @@ const WarehousesPage: React.FC = () => {
 
   const getStatusLabel = (status: boolean) => {
     return status ? 'Active' : 'Disabled';
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'warehouse':
+        return <WarehouseIcon fontSize="small" />;
+      case 'location':
+        return <LocationIcon fontSize="small" />;
+      case 'container':
+        return <ContainerIcon fontSize="small" />;
+      default:
+        return <ContainerIcon fontSize="small" />;
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'warehouse':
+        return 'primary';
+      case 'location':
+        return 'secondary';
+      case 'container':
+        return 'default';
+      default:
+        return 'default';
+    }
+  };
+
+  const getIndentation = (type: string) => {
+    switch (type) {
+      case 'warehouse':
+        return 0;
+      case 'location':
+        return 2;
+      case 'container':
+        return 4;
+      default:
+        return 0;
+    }
   };
 
   const handleDelete = (id: string, label: string) => {
@@ -122,11 +165,11 @@ const WarehousesPage: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>Type</TableCell>
               <TableCell>Reference</TableCell>
               <TableCell>Name</TableCell>
+              <TableCell>Container Type</TableCell>
               <TableCell>Location</TableCell>
-              <TableCell>Town</TableCell>
-              <TableCell>Phone</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -142,12 +185,29 @@ const WarehousesPage: React.FC = () => {
               warehouses.map((warehouse: Warehouse) => (
                 <TableRow key={warehouse.id || warehouse._id} hover>
                   <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
+                    <Chip
+                      icon={getTypeIcon(warehouse.type || 'container')}
+                      label={warehouse.type || 'container'}
+                      color={getTypeColor(warehouse.type || 'container') as any}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography 
+                      variant="body2" 
+                      fontWeight="medium"
+                      sx={{ pl: getIndentation(warehouse.type || 'container') }}
+                    >
                       {warehouse.ref}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">{warehouse.label}</Typography>
+                    <Typography 
+                      variant="body2"
+                      sx={{ pl: getIndentation(warehouse.type || 'container') }}
+                    >
+                      {warehouse.label}
+                    </Typography>
                     {warehouse.description && (
                       <Typography variant="caption" color="text.secondary" display="block">
                         {warehouse.description.substring(0, 50)}
@@ -156,20 +216,26 @@ const WarehousesPage: React.FC = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">
-                      {warehouse.short || '-'}
-                    </Typography>
+                    {warehouse.container_type ? (
+                      <Chip
+                        label={warehouse.container_type}
+                        size="small"
+                        variant="outlined"
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">-</Typography>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
                       {warehouse.town || '-'}
                       {warehouse.zip && ` (${warehouse.zip})`}
                     </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontFamily="monospace">
-                      {warehouse.phone || '-'}
-                    </Typography>
+                    {warehouse.short && (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {warehouse.short}
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Chip

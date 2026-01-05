@@ -9,7 +9,9 @@ from app.models.warehouse import (
     WarehouseCreate,
     WarehouseUpdate,
     WarehouseResponse,
-    WarehouseBase
+    WarehouseBase,
+    WarehouseType,
+    ContainerType
 )
 from app.models.user import UserInDB
 from app.core.security import get_current_active_user
@@ -53,7 +55,9 @@ async def list_warehouses(
     skip: int = Query(0, ge=0, description="Number of warehouses to skip"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of warehouses to return"),
     search: Optional[str] = Query(None, description="Search in warehouse label or description"),
-    statut: Optional[str] = Query(None, description="Filter by status (0=disabled, 1=enabled)"),
+    type: Optional[WarehouseType] = Query(None, description="Filter by type (warehouse, location, container)"),
+    parent_id: Optional[str] = Query(None, description="Filter by parent ObjectId"),
+    status: Optional[bool] = Query(None, description="Filter by status (true=enabled, false=disabled)"),
     current_user: UserInDB = Depends(get_current_active_user)
 ):
     """List all non-deleted warehouses with pagination and filtering."""
@@ -64,10 +68,27 @@ async def list_warehouses(
     query = {"deleted": False}
     
     if search:
-        query["$text"] = {"$search": search}
+        # Use regex for partial matching (case-insensitive)
+        search_pattern = {"$regex": search, "$options": "i"}
+        query["$or"] = [
+            {"label": search_pattern},
+            {"ref": search_pattern},
+            {"description": search_pattern},
+        ]
     
-    if statut is not None:
-        query["statut"] = statut
+    if type is not None:
+        query["type"] = type.value
+    
+    if parent_id is not None:
+        if not ObjectId.is_valid(parent_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid parent_id format"
+            )
+        query["fk_parent"] = parent_id
+    
+    if status is not None:
+        query["status"] = status
     
     # Execute query with pagination
     cursor = warehouses_collection.find(query).sort("date_creation", DESCENDING).skip(skip).limit(limit)
@@ -228,3 +249,117 @@ async def delete_warehouse(
     )
     
     return None
+
+
+@router.get("/type/{type}", response_model=List[WarehouseResponse])
+async def list_by_type(
+    type: WarehouseType,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """Get all items of a specific type (warehouse, location, or container)."""
+    db = MongoDB.get_db()
+    warehouses_collection = db.warehouses
+    
+    query = {"deleted": False, "type": type.value}
+    
+    cursor = warehouses_collection.find(query).sort("label", 1).skip(skip).limit(limit)
+    items = await cursor.to_list(length=limit)
+    
+    return [WarehouseResponse(**item) for item in items]
+
+
+@router.get("/{warehouse_id}/children", response_model=List[WarehouseResponse])
+async def get_children(
+    warehouse_id: str,
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """Get all child items (locations under warehouse, or containers under location)."""
+    if not ObjectId.is_valid(warehouse_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid warehouse ID format"
+        )
+    
+    db = MongoDB.get_db()
+    warehouses_collection = db.warehouses
+    
+    # Check parent exists
+    parent = await warehouses_collection.find_one({
+        "_id": ObjectId(warehouse_id),
+        "deleted": False
+    })
+    
+    if not parent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Parent not found"
+        )
+    
+    # Get children
+    cursor = warehouses_collection.find({
+        "fk_parent": warehouse_id,
+        "deleted": False
+    }).sort("label", 1)
+    
+    children = await cursor.to_list(length=None)
+    
+    return [WarehouseResponse(**child) for child in children]
+
+
+@router.get("/{warehouse_id}/path", response_model=List[WarehouseResponse])
+async def get_hierarchy_path(
+    warehouse_id: str,
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """Get full hierarchy path from warehouse down to this item (e.g., [warehouse, location, container])."""
+    if not ObjectId.is_valid(warehouse_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid warehouse ID format"
+        )
+    
+    db = MongoDB.get_db()
+    warehouses_collection = db.warehouses
+    
+    # Get the item
+    item = await warehouses_collection.find_one({
+        "_id": ObjectId(warehouse_id),
+        "deleted": False
+    })
+    
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found"
+        )
+    
+    # Build path by traversing up the hierarchy
+    path = [WarehouseResponse(**item)]
+    
+    current_parent_id = item.get("fk_parent")
+    while current_parent_id:
+        if not ObjectId.is_valid(current_parent_id):
+            break
+            
+        parent = await warehouses_collection.find_one({
+            "_id": ObjectId(current_parent_id),
+            "deleted": False
+        })
+        
+        if not parent:
+            break
+        
+        path.insert(0, WarehouseResponse(**parent))
+        current_parent_id = parent.get("fk_parent")
+    
+    return path
+
+
+@router.get("/container-types/list", response_model=List[str])
+async def list_container_types(
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """Get list of all container types (predefined enum values)."""
+    return [ct.value for ct in ContainerType]

@@ -1,8 +1,31 @@
 """Warehouse data models with flexible schema support."""
 from datetime import datetime
-from typing import Optional, Any, Dict, Annotated
-from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
+from typing import Optional, Any, Dict, Annotated, Literal
+from enum import Enum
+from pydantic import BaseModel, Field, ConfigDict, BeforeValidator, field_validator
 from bson import ObjectId
+
+
+class WarehouseType(str, Enum):
+    """Warehouse hierarchy type enumeration."""
+    WAREHOUSE = "warehouse"  # Top level - physical building/location
+    LOCATION = "location"    # Mid level - room/area within warehouse
+    CONTAINER = "container"  # Bottom level - box/bin/storage unit
+
+
+class ContainerType(str, Enum):
+    """Container type enumeration."""
+    BOX = "box"
+    CASE = "case"
+    SUITCASE = "suitcase"
+    IKEA_BOX = "ikea_box"
+    IKEA_CASE = "ikea_case"
+    STORAGE_BIN = "storage_bin"
+    WRAP = "wrap"
+    PALLET = "pallet"
+    SHELF = "shelf"
+    DRAWER = "drawer"
+    OTHER = "other"
 
 
 def validate_object_id(v: Any) -> str:
@@ -23,23 +46,33 @@ PyObjectId = Annotated[str, BeforeValidator(validate_object_id)]
 class WarehouseBase(BaseModel):
     """
     Base warehouse model with MVP fields.
-    These are the minimum required fields for warehouse management.
+    Supports three-tier hierarchy: Warehouse -> Location -> Container
     """
     
     # Required fields
-    ref: str = Field(..., description="Warehouse reference/code (unique)")
-    label: str = Field(..., description="Warehouse name/label")
+    ref: str = Field(..., description="Unique reference/code")
+    label: str = Field(..., description="Display name/label")
+    type: WarehouseType = Field(default=WarehouseType.CONTAINER, description="Hierarchy type: warehouse, location, or container")
     
     # Optional core fields
-    description: Optional[str] = Field(default=None, description="Warehouse description")
-    short: Optional[str] = Field(default=None, description="Short location code (e.g., HED01)")
-    address: Optional[str] = Field(default=None, description="Street address")
-    zip: Optional[str] = Field(default=None, description="Postal code")
-    town: Optional[str] = Field(default=None, description="City/town")
-    phone: Optional[str] = Field(default=None, description="Phone number")
-    fax: Optional[str] = Field(default=None, description="Fax number")
-    status: bool = Field(default=True, description="Warehouse status: true=enabled, false=disabled")
-    fk_parent: Optional[str] = Field(default=None, description="Parent warehouse ID")
+    description: Optional[str] = Field(default=None, description="Description")
+    short: Optional[str] = Field(default=None, description="Short code (e.g., HED01)")
+    
+    # Address fields (only for warehouse type)
+    address: Optional[str] = Field(default=None, description="Street address (warehouse only)")
+    zip: Optional[str] = Field(default=None, description="Postal code (warehouse only)")
+    town: Optional[str] = Field(default=None, description="City/town (warehouse only)")
+    phone: Optional[str] = Field(default=None, description="Phone number (warehouse only)")
+    fax: Optional[str] = Field(default=None, description="Fax number (warehouse only)")
+    
+    # Container-specific field
+    container_type: Optional[ContainerType] = Field(default=None, description="Container type (container only)")
+    
+    # Hierarchy
+    fk_parent: Optional[str] = Field(default=None, description="Parent ObjectId (location parent=warehouse, container parent=location)")
+    
+    # Status
+    status: bool = Field(default=True, description="Status: true=enabled, false=disabled")
     
     # Soft delete fields
     deleted: bool = Field(default=False, description="Soft delete flag")
@@ -49,10 +82,27 @@ class WarehouseBase(BaseModel):
     date_creation: Optional[datetime] = Field(default_factory=datetime.utcnow)
     date_modification: Optional[datetime] = Field(default_factory=datetime.utcnow)
     
+    @field_validator('fk_parent')
+    @classmethod
+    def validate_parent(cls, v, info):
+        """Validate parent based on type."""
+        if info.data.get('type') == WarehouseType.WAREHOUSE and v is not None:
+            raise ValueError("Warehouse type cannot have a parent")
+        return v
+    
+    @field_validator('container_type')
+    @classmethod
+    def validate_container_type(cls, v, info):
+        """Container type only valid for containers."""
+        if v is not None and info.data.get('type') != WarehouseType.CONTAINER:
+            raise ValueError("container_type only valid for container type")
+        return v
+    
     model_config = ConfigDict(
         populate_by_name=True,
         arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str}
+        json_encoders={ObjectId: str},
+        use_enum_values=True
     )
 
 
@@ -182,19 +232,22 @@ class WarehouseUpdate(BaseModel):
     """Schema for updating a warehouse. All fields are optional."""
     ref: Optional[str] = None
     label: Optional[str] = None
+    type: Optional[WarehouseType] = None
     description: Optional[str] = None
-    lieu: Optional[str] = None
+    short: Optional[str] = None
     address: Optional[str] = None
     zip: Optional[str] = None
     town: Optional[str] = None
     phone: Optional[str] = None
     fax: Optional[str] = None
-    statut: Optional[str] = None
+    container_type: Optional[ContainerType] = None
+    status: Optional[bool] = None
     fk_parent: Optional[str] = None
     
     model_config = ConfigDict(
         populate_by_name=True,
-        arbitrary_types_allowed=True
+        arbitrary_types_allowed=True,
+        use_enum_values=True
     )
 
 

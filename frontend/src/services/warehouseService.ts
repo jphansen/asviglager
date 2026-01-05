@@ -1,5 +1,5 @@
 import api from './api';
-import type { Warehouse, WarehouseCreate, WarehouseListParams } from '../types';
+import type { Warehouse, WarehouseCreate, WarehouseListParams, WarehouseType, ContainerType } from '../types';
 
 export const warehouseService = {
   async getWarehouses(params?: WarehouseListParams): Promise<Warehouse[]> {
@@ -34,6 +34,27 @@ export const warehouseService = {
 
   async getDeletedWarehouses(): Promise<Warehouse[]> {
     const response = await api.get<Warehouse[]>('/warehouses/deleted/');
+    return response.data;
+  },
+
+  // Hierarchy-specific methods
+  async getByType(type: WarehouseType, params?: { skip?: number; limit?: number }): Promise<Warehouse[]> {
+    const response = await api.get<Warehouse[]>(`/warehouses/type/${type}`, { params });
+    return response.data;
+  },
+
+  async getChildren(warehouseId: string): Promise<Warehouse[]> {
+    const response = await api.get<Warehouse[]>(`/warehouses/${warehouseId}/children`);
+    return response.data;
+  },
+
+  async getHierarchyPath(warehouseId: string): Promise<Warehouse[]> {
+    const response = await api.get<Warehouse[]>(`/warehouses/${warehouseId}/path`);
+    return response.data;
+  },
+
+  async getContainerTypes(): Promise<string[]> {
+    const response = await api.get<string[]>('/warehouses/container-types/list');
     return response.data;
   },
 };

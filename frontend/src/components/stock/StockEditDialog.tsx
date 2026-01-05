@@ -15,10 +15,6 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Alert,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Grid,
 } from '@mui/material';
 import {
@@ -27,12 +23,13 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import { productService } from '../../services/productService';
+import ContainerSelector from '../warehouse/ContainerSelector';
 import type { Product, Warehouse } from '../../types';
 
 interface StockEditDialogProps {
   open: boolean;
   product: Product;
-  warehouses: Warehouse[];
+  warehouses: Warehouse[]; // All containers for backward compat display
   onClose: () => void;
 }
 
@@ -43,7 +40,8 @@ const StockEditDialog: React.FC<StockEditDialogProps> = ({
   onClose,
 }) => {
   const queryClient = useQueryClient();
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
+  const [selectedContainerRef, setSelectedContainerRef] = useState<string>('');
+  const [selectedContainerData, setSelectedContainerData] = useState<Warehouse | null>(null);
   const [stockAmount, setStockAmount] = useState<string>('');
   const [error, setError] = useState<string>('');
 
@@ -55,7 +53,8 @@ const StockEditDialog: React.FC<StockEditDialogProps> = ({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['product', productId] });
-      setSelectedWarehouse('');
+      setSelectedContainerRef('');
+      setSelectedContainerData(null);
       setStockAmount('');
       setError('');
     },
@@ -77,8 +76,8 @@ const StockEditDialog: React.FC<StockEditDialogProps> = ({
   });
 
   const handleAddStock = () => {
-    if (!selectedWarehouse) {
-      setError('Please select a warehouse');
+    if (!selectedContainerRef) {
+      setError('Please select a container');
       return;
     }
 
@@ -89,7 +88,7 @@ const StockEditDialog: React.FC<StockEditDialogProps> = ({
     }
 
     updateStockMutation.mutate({
-      warehouseRef: selectedWarehouse,
+      warehouseRef: selectedContainerRef,
       items,
     });
   };
@@ -98,6 +97,11 @@ const StockEditDialog: React.FC<StockEditDialogProps> = ({
     if (confirm(`Remove stock location: ${getWarehouseLabel(warehouseRef)}?`)) {
       removeStockMutation.mutate(warehouseRef);
     }
+  };
+
+  const handleContainerSelect = (containerRef: string, containerData: Warehouse | null) => {
+    setSelectedContainerRef(containerRef);
+    setSelectedContainerData(containerData);
   };
 
   const getWarehouseLabel = (warehouseRef: string): string => {
@@ -189,21 +193,13 @@ const StockEditDialog: React.FC<StockEditDialogProps> = ({
             <strong>Add or Update Stock</strong>
           </Typography>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Warehouse</InputLabel>
-                <Select
-                  value={selectedWarehouse}
-                  onChange={(e) => setSelectedWarehouse(e.target.value)}
-                  label="Warehouse"
-                >
-                  {getAvailableWarehouses().map((warehouse) => (
-                    <MenuItem key={warehouse.ref} value={warehouse.ref}>
-                      {warehouse.label} ({warehouse.ref})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+            <Grid item xs={12}>
+              <ContainerSelector
+                value={selectedContainerRef}
+                onChange={handleContainerSelect}
+                label="Select Container"
+                required
+              />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField
@@ -224,7 +220,7 @@ const StockEditDialog: React.FC<StockEditDialogProps> = ({
                 disabled={updateStockMutation.isPending}
                 sx={{ height: '56px' }}
               >
-                {currentStock[selectedWarehouse] ? 'Update' : 'Add'}
+                {currentStock[selectedContainerRef] ? 'Update' : 'Add'}
               </Button>
             </Grid>
           </Grid>
