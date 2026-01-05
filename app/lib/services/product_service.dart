@@ -61,6 +61,22 @@ class ProductService {
     }
   }
 
+  Future<Product> updateProduct(String productId, Product product) async {
+    try {
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId';
+      final response = await apiClient.put(url, body: product.toJson());
+
+      if (response.statusCode == 200) {
+        return Product.fromJson(json.decode(response.body));
+      } else {
+        final error = json.decode(response.body);
+        throw Exception(error['detail'] ?? 'Failed to update product');
+      }
+    } catch (e) {
+      throw Exception('Error updating product: $e');
+    }
+  }
+
   Future<Product> updateStock(String productId, String warehouseRef, double items) async {
     try {
       final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock/$warehouseRef';

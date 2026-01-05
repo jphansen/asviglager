@@ -11,6 +11,7 @@ class Product {
   final String statusBuy;
   final bool deleted;
   final Map<String, WarehouseStock>? stockWarehouse;
+  final List<String>? photos;
   final DateTime dateCreation;
   final DateTime dateModification;
 
@@ -27,6 +28,7 @@ class Product {
     required this.statusBuy,
     required this.deleted,
     this.stockWarehouse,
+    this.photos,
     required this.dateCreation,
     required this.dateModification,
   });
@@ -55,6 +57,7 @@ class Product {
       statusBuy: json['status_buy'] as String,
       deleted: json['deleted'] as bool,
       stockWarehouse: stockWarehouse,
+      photos: json['photos'] != null ? List<String>.from(json['photos']) : null,
       dateCreation: DateTime.parse(json['date_creation'] as String),
       dateModification: DateTime.parse(json['date_modification'] as String),
     );

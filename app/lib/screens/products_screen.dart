@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/product.dart';
+import '../models/photo.dart';
 import '../services/auth_service.dart';
 import '../services/product_service.dart';
+import '../services/photo_service.dart';
 import '../services/api_client.dart';
+import 'edit_product_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -177,11 +182,44 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '${product.ref} • ${product.price.toStringAsFixed(2)} DKK',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${product.ref} • ${product.price.toStringAsFixed(2)} DKK',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ),
+                    if (product.photos != null && product.photos!.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.photo_library,
+                              size: 12,
+                              color: Theme.of(context).colorScheme.secondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${product.photos!.length}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context).colorScheme.secondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ),
               trailing: product.barcode != null
@@ -216,6 +254,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Display photos if available
+              if (product.photos != null && product.photos!.isNotEmpty)
+                _buildPhotoGallery(product.photos!),
               _DetailRow('Reference:', product.ref),
               _DetailRow('Price:', '${product.price.toStringAsFixed(2)} DKK'),
               if (product.barcode != null)
@@ -234,7 +275,154 @@ class _ProductsScreenState extends State<ProductsScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditProductScreen(product: product),
+                ),
+              );
+              if (result == true) {
+                _loadProducts();
+              }
+            },
+            icon: const Icon(Icons.edit),
+            label: const Text('Edit'),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPhotoGallery(List<String> photoIds) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Photos:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 120,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: photoIds.map((photoId) => _buildPhotoThumbnail(photoId)).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhotoThumbnail(String photoId) {
+    return FutureBuilder<Photo>(
+      future: _loadPhoto(photoId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            width: 120,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return Container(
+            width: 120,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.broken_image_outlined,
+              color: Colors.grey[400],
+            ),
+          );
+        }
+
+        final photo = snapshot.data!;
+        return GestureDetector(
+          onTap: () => _showFullPhoto(photo),
+          child: Container(
+            width: 120,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              image: DecorationImage(
+                image: MemoryImage(_base64ToImage(photo.data)),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Photo> _loadPhoto(String photoId) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final apiClient = ApiClient(authService);
+    final photoService = PhotoService(apiClient);
+    return await photoService.getPhoto(photoId);
+  }
+
+  Uint8List _base64ToImage(String base64String) {
+    return base64Decode(base64String);
+  }
+
+  void _showFullPhoto(Photo photo) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              children: [
+                InteractiveViewer(
+                  child: Image.memory(
+                    _base64ToImage(photo.data),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black54,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (photo.description != null && photo.description!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  photo.description!,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
