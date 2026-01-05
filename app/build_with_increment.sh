@@ -37,6 +37,7 @@ case $TARGET in
     apk)
         echo "Building APK..."
         flutter build apk
+        bash move_to_drive.sh
         ;;
     appbundle)
         echo "Building App Bundle..."

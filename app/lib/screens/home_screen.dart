@@ -104,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                                             ),
                                       ),
-                                      if (_buildNumber != null) ..[
+                                      if (_buildNumber != null) ...[
                                         const SizedBox(width: 6),
                                         Text(
                                           'Build #$_buildNumber',
@@ -411,7 +411,7 @@ class _UserInfoDialogState extends State<_UserInfoDialog> {
             ),
             const SizedBox(height: 24),
             // App Information Section
-            if (_packageInfo != null) ..[
+            if (_packageInfo != null) ...[
               _InfoSection(
                 title: 'App Information',
                 items: [
