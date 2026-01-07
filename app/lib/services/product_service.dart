@@ -127,4 +127,18 @@ class ProductService {
       throw Exception('Error removing stock: $e');
     }
   }
+
+  Future<void> deleteProduct(String productId) async {
+    try {
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId';
+      final response = await apiClient.delete(url);
+
+      if (response.statusCode != 204) {
+        final error = json.decode(response.body);
+        throw Exception(error['detail'] ?? 'Failed to delete product');
+      }
+    } catch (e) {
+      throw Exception('Error deleting product: $e');
+    }
+  }
 }

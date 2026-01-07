@@ -169,55 +169,79 @@ class _EditProductScreenState extends State<EditProductScreen> {
     }
   }
 
-  Future<void> _removePhoto(int index) async {
+  Future<void> _showPhotoOptions(int index) async {
     final photoId = _existingPhotoIds[index];
     
-    final confirm = await showDialog<bool>(
+    final action = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove Photo'),
-        content: const Text('Are you sure you want to remove this photo from the product?'),
+        title: const Text('Photo Options'),
+        content: const Text('Choose an action for this photo:'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context, null),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(context, 'unlink'),
+            child: const Text('Unlink from Product'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'delete'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
+            child: const Text('Delete Permanently'),
           ),
         ],
       ),
     );
     
-    if (confirm != true) return;
+    if (action == null) return;
     
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final apiClient = ApiClient(authService);
       final photoService = PhotoService(apiClient);
       
-      await photoService.removePhotoFromProduct(widget.product.id, photoId);
-      
-      if (mounted) {
-        setState(() {
-          _existingPhotoIds.removeAt(index);
-          _existingPhotos.removeAt(index);
-        });
+      if (action == 'delete') {
+        // Delete the photo document permanently
+        await photoService.deletePhoto(photoId);
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Photo removed from product'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          setState(() {
+            _existingPhotoIds.removeAt(index);
+            _existingPhotos.removeAt(index);
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Photo deleted permanently'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else if (action == 'unlink') {
+        // Just unlink from product, keep the photo in database
+        await photoService.removePhotoFromProduct(widget.product.id, photoId);
+        
+        if (mounted) {
+          setState(() {
+            _existingPhotoIds.removeAt(index);
+            _existingPhotos.removeAt(index);
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Photo unlinked from product (photo kept in database)'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error removing photo: $e'),
+            content: Text('Error: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -305,11 +329,83 @@ class _EditProductScreenState extends State<EditProductScreen> {
     return base64Decode(base64String);
   }
 
+  Future<void> _deleteProduct() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Product'),
+        content: Text('Are you sure you want to delete "${widget.product.label}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final apiClient = ApiClient(authService);
+      final productService = ProductService(apiClient);
+      
+      await productService.deleteProduct(widget.product.id);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Product deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting product: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Product'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              if (value == 'delete') {
+                await _deleteProduct();
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete Product', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -344,39 +440,42 @@ class _EditProductScreenState extends State<EditProductScreen> {
                     itemCount: _existingPhotos.length,
                     itemBuilder: (context, index) {
                       final photo = _existingPhotos[index];
-                      return Stack(
-                        children: [
-                          Container(
-                            width: 120,
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              image: DecorationImage(
-                                image: MemoryImage(_base64ToImage(photo.data)),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: 4,
-                            right: 12,
-                            child: GestureDetector(
-                              onTap: () => _removePhoto(index),
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 16,
+                      return GestureDetector(
+                        onLongPress: () => _showPhotoOptions(index),
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 120,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  image: MemoryImage(_base64ToImage(photo.data)),
+                                  fit: BoxFit.cover,
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                            Positioned(
+                              top: 4,
+                              right: 12,
+                              child: GestureDetector(
+                                onTap: () => _showPhotoOptions(index),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.delete,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
