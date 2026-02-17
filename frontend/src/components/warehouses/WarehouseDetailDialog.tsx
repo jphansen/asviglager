@@ -19,6 +19,8 @@ import {
   LocationOn as LocationIcon,
   Phone as PhoneIcon,
   Fax as FaxIcon,
+  Warehouse as WarehouseIcon,
+  Inventory as ContainerIcon,
 } from '@mui/icons-material';
 import { warehouseService } from '../../services/warehouseService';
 
@@ -45,6 +47,32 @@ const WarehouseDetailDialog: React.FC<WarehouseDetailDialogProps> = ({
 
   const getStatusColor = (status: boolean) => {
     return status ? 'success' : 'error';
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'warehouse':
+        return <WarehouseIcon fontSize="small" />;
+      case 'location':
+        return <LocationIcon fontSize="small" />;
+      case 'container':
+        return <ContainerIcon fontSize="small" />;
+      default:
+        return <ContainerIcon fontSize="small" />;
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'warehouse':
+        return 'Warehouse';
+      case 'location':
+        return 'Location';
+      case 'container':
+        return 'Container';
+      default:
+        return type || 'Container';
+    }
   };
 
   return (
@@ -91,6 +119,25 @@ const WarehouseDetailDialog: React.FC<WarehouseDetailDialogProps> = ({
               <Typography variant="body1" fontWeight="medium">
                 {warehouse.label}
               </Typography>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Typography variant="caption" color="text.secondary">
+                Type
+              </Typography>
+              <Box mt={0.5} display="flex" alignItems="center" gap={1}>
+                {getTypeIcon(warehouse.type || 'container')}
+                <Typography variant="body1">
+                  {getTypeLabel(warehouse.type || 'container')}
+                </Typography>
+                {warehouse.container_type && (
+                  <Chip
+                    label={warehouse.container_type}
+                    size="small"
+                    variant="outlined"
+                  />
+                )}
+              </Box>
             </Grid>
 
             <Grid item xs={12} sm={6}>

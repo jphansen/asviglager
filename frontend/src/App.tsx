@@ -10,6 +10,7 @@ import DashboardPage from './pages/DashboardPage';
 import ProductsPage from './pages/ProductsPage';
 import WarehousesPage from './pages/WarehousesPage';
 import StockPage from './pages/StockPage';
+import BarcodeLookupPage from './pages/BarcodeLookupPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -216,6 +217,7 @@ function App() {
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="warehouses" element={<WarehousesPage />} />
                 <Route path="stock" element={<StockPage />} />
+                <Route path="barcode" element={<BarcodeLookupPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

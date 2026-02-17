@@ -42,7 +42,7 @@ const StockEditDialog: React.FC<StockEditDialogProps> = ({
   const queryClient = useQueryClient();
   const [selectedContainerRef, setSelectedContainerRef] = useState<string>('');
   const [selectedContainerData, setSelectedContainerData] = useState<Warehouse | null>(null);
-  const [stockAmount, setStockAmount] = useState<string>('');
+  const [stockAmount, setStockAmount] = useState<string>('1');
   const [error, setError] = useState<string>('');
 
   const productId = product.id || product._id || '';
@@ -55,7 +55,7 @@ const StockEditDialog: React.FC<StockEditDialogProps> = ({
       queryClient.invalidateQueries({ queryKey: ['product', productId] });
       setSelectedContainerRef('');
       setSelectedContainerData(null);
-      setStockAmount('');
+      setStockAmount('1'); // Reset to default value of 1
       setError('');
     },
     onError: (error: any) => {

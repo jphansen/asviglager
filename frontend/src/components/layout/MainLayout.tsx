@@ -26,6 +26,7 @@ import {
   AccountCircle,
   Logout as LogoutIcon,
   ShoppingCart as StockIcon,
+  QrCode as BarcodeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -42,6 +43,7 @@ const menuItems: MenuItem[] = [
   { text: 'Products', icon: <InventoryIcon />, path: '/products' },
   { text: 'Warehouses', icon: <WarehouseIcon />, path: '/warehouses' },
   { text: 'Stock', icon: <StockIcon />, path: '/stock' },
+  { text: 'Barcode Lookup', icon: <BarcodeIcon />, path: '/barcode' },
 ];
 
 const MainLayout: React.FC = () => {
