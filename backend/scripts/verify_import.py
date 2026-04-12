@@ -7,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 
 async def verify():
-    client = AsyncIOMotorClient('mongodb://asviglager:Horsens2025@172.32.0.3:27017')
+    client = AsyncIOMotorClient('mongodb://asviglager:Horsens2025@mongo.asvig.int:27017')
     db = client.asviglager
     
     # Count documents
