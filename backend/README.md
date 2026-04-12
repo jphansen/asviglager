@@ -44,7 +44,7 @@ backend/
 ## Requirements
 
 - Python 3.13+
-- MongoDB (running at 172.32.0.3:27017)
+- MongoDB (running at mongo.asvig.int:27017)
 - uv (Python package manager)
 
 ## Setup
@@ -59,7 +59,7 @@ uv sync
 ### 2. Configure Environment
 
 The `.env` file is already configured with:
-- MongoDB connection: `mongodb://asviglager:Horsens2025@172.32.0.3:27017`
+- MongoDB connection: `mongodb://asviglager:Horsens2025@mongo.asvig.int:27017`
 - JWT secret key
 - CORS settings
 
@@ -349,7 +349,7 @@ See `.env.example` for all available configuration options:
 
 ### MongoDB Connection Failed
 
-- Check if MongoDB is running at 172.32.0.3:27017
+- Check if MongoDB is running at mongo.asvig.int:27017
 - Verify credentials: asviglager / Horsens2025
 - Check network connectivity
 
