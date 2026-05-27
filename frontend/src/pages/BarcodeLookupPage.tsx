@@ -70,7 +70,7 @@ const BarcodeLookupPage: React.FC = () => {
             Enter Barcode
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Enter a barcode to lookup product information. Example: 6921815628880 (OnePlus Pad 3)
+            Enter a full or partial barcode to lookup product information. Searching "8881" will find barcodes containing those digits. Example: 6921815628880 (OnePlus Pad 3)
           </Typography>
           
           <Grid container spacing={2} alignItems="center">
@@ -81,7 +81,7 @@ const BarcodeLookupPage: React.FC = () => {
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Enter barcode (e.g., 6921815628880)"
+                placeholder="Enter full or partial barcode (e.g., 8881)"
                 InputProps={{
                   startAdornment: <BarcodeIcon sx={{ mr: 1, color: 'text.secondary' }} />,
                 }}
@@ -174,7 +174,7 @@ const BarcodeLookupPage: React.FC = () => {
                       Barcode
                     </Typography>
                     <Typography variant="body1" fontFamily="monospace" gutterBottom>
-                      {searchBarcode}
+                      {product.barcode || '—'}
                     </Typography>
 
                     <Typography variant="caption" color="text.secondary" display="block">
@@ -203,7 +203,7 @@ const BarcodeLookupPage: React.FC = () => {
                       Price
                     </Typography>
                     <Typography variant="h5" color="primary" gutterBottom>
-                      ${product.price.toFixed(2)}
+                      kr. {product.price.toFixed(2)}
                     </Typography>
 
                     {product.price_ttc && (
@@ -212,7 +212,7 @@ const BarcodeLookupPage: React.FC = () => {
                           Price (TTC)
                         </Typography>
                         <Typography variant="h6" color="text.secondary" gutterBottom>
-                          ${product.price_ttc.toFixed(2)}
+                          kr. {product.price_ttc.toFixed(2)}
                         </Typography>
                       </>
                     )}
@@ -341,7 +341,7 @@ const BarcodeLookupPage: React.FC = () => {
               How to Use Barcode Lookup
             </Typography>
             <Typography variant="body2" paragraph>
-              1. Enter a barcode in the search field above (e.g., 6921815628880)
+              1. Enter a full or partial barcode in the search field above (e.g., 6921815628880 or just 8881)
             </Typography>
             <Typography variant="body2" paragraph>
               2. Press Enter or click the "Lookup" button to search

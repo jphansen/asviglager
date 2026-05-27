@@ -327,7 +327,7 @@ const ProductEditDialog: React.FC<ProductEditDialogProps> = ({
                       error={!!errors.price}
                       helperText={errors.price?.message}
                       InputProps={{
-                        startAdornment: <InputAdornment position="start">€</InputAdornment>,
+                        startAdornment: <InputAdornment position="start">kr.</InputAdornment>,
                       }}
                     />
                   )}

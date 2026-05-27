@@ -3,7 +3,7 @@ import type { Warehouse, WarehouseCreate, WarehouseListParams, WarehouseType, Co
 
 export const warehouseService = {
   async getWarehouses(params?: WarehouseListParams): Promise<Warehouse[]> {
-    const response = await api.get<Warehouse[]>('/warehouses/', { params });
+    const response = await api.get<Warehouse[]>('/warehouses', { params });
     return response.data;
   },
 
@@ -18,7 +18,7 @@ export const warehouseService = {
   },
 
   async createWarehouse(warehouse: WarehouseCreate): Promise<Warehouse> {
-    const response = await api.post<Warehouse>('/warehouses/', warehouse);
+    const response = await api.post<Warehouse>('/warehouses', warehouse);
     return response.data;
   },
 
@@ -33,7 +33,7 @@ export const warehouseService = {
   },
 
   async getDeletedWarehouses(): Promise<Warehouse[]> {
-    const response = await api.get<Warehouse[]>('/warehouses/deleted/');
+    const response = await api.get<Warehouse[]>('/warehouses/deleted');
     return response.data;
   },
 

@@ -154,11 +154,14 @@ async def get_product_by_barcode(
     barcode: str,
     current_user: UserInDB = Depends(get_current_active_user)
 ):
-    """Get a product by barcode."""
+    """Get a product by barcode (supports partial matching)."""
     db = MongoDB.get_db()
     products_collection = db.products
     
-    product = await products_collection.find_one({"barcode": barcode, "deleted": False})
+    product = await products_collection.find_one({
+        "barcode": {"$regex": barcode, "$options": "i"},
+        "deleted": False
+    })
     
     if not product:
         raise HTTPException(

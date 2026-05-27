@@ -9,7 +9,7 @@ import type {
 
 export const productService = {
   async getProducts(params?: ProductListParams): Promise<Product[]> {
-    const response = await api.get<Product[]>('/products/', { params });
+    const response = await api.get<Product[]>('/products', { params });
     return response.data;
   },
 
@@ -29,7 +29,7 @@ export const productService = {
   },
 
   async createProduct(product: ProductCreate): Promise<Product> {
-    const response = await api.post<Product>('/products/', product);
+    const response = await api.post<Product>('/products', product);
     return response.data;
   },
 
@@ -44,7 +44,7 @@ export const productService = {
   },
 
   async getDeletedProducts(): Promise<Product[]> {
-    const response = await api.get<Product[]>('/products/deleted/');
+    const response = await api.get<Product[]>('/products/deleted');
     return response.data;
   },
 

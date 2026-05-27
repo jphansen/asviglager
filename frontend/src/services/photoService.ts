@@ -3,12 +3,12 @@ import type { Photo, PhotoUpload } from '../types';
 
 export const photoService = {
   async uploadPhoto(photo: PhotoUpload): Promise<Photo> {
-    const response = await api.post<Photo>('/photos/', photo);
+    const response = await api.post<Photo>('/photos', photo);
     return response.data;
   },
 
   async getPhotos(): Promise<Photo[]> {
-    const response = await api.get<Photo[]>('/photos/');
+    const response = await api.get<Photo[]>('/photos');
     return response.data;
   },
 

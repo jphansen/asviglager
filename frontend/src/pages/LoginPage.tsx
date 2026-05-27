@@ -37,10 +37,15 @@ const LoginPage: React.FC = () => {
       navigate('/', { replace: true });
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(
-        err.response?.data?.detail || 
-        'Invalid username or password. Please try again.'
-      );
+      if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else if (err.response?.status === 401) {
+        setError('Invalid username or password. Please try again.');
+      } else if (!err.response) {
+        setError('Network error: unable to reach the server. Check your connection and CORS configuration.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
       setIsLoading(false);
     }
   };
