@@ -7,6 +7,7 @@ import '../services/api_client.dart';
 import '../models/product.dart';
 import '../models/warehouse.dart';
 import '../widgets/container_selector.dart';
+import '../utils/container_memory.dart';
 
 class StockScreen extends StatefulWidget {
   const StockScreen({super.key});
@@ -22,6 +23,7 @@ class _StockScreenState extends State<StockScreen> {
   bool _isLoading = true;
   String _error = '';
   final TextEditingController _searchController = TextEditingController();
+  final Set<String> _selectedProductIds = {};
 
   @override
   void initState() {
@@ -48,7 +50,6 @@ class _StockScreenState extends State<StockScreen> {
 
       final productService = ProductService(apiClient);
       
-      // Load all products in batches since backend limits to 100 per request
       List<Product> allProducts = [];
       int skip = 0;
       const int batchSize = 100;
@@ -116,8 +117,22 @@ class _StockScreenState extends State<StockScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stock Management'),
+        title: Text(_selectedProductIds.isEmpty
+            ? 'Stock Management'
+            : '${_selectedProductIds.length} selected'),
         actions: [
+          if (_selectedProductIds.isNotEmpty) ...[
+            IconButton(
+              icon: const Icon(Icons.inventory_2),
+              onPressed: _showBulkAssignDialog,
+              tooltip: 'Assign to Container',
+            ),
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () => setState(() => _selectedProductIds.clear()),
+              tooltip: 'Clear selection',
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
@@ -230,11 +245,25 @@ class _StockScreenState extends State<StockScreen> {
   Widget _buildProductCard(Product product) {
     final totalStock = product.getTotalStock();
     final hasStock = product.stockWarehouse != null && product.stockWarehouse!.isNotEmpty;
+    final isSelected = _selectedProductIds.contains(product.id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      color: isSelected
+          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+          : null,
       child: InkWell(
-        onTap: () => _showStockDialog(product),
+        onTap: _selectedProductIds.isEmpty
+            ? () => _showStockDialog(product)
+            : () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedProductIds.remove(product.id);
+                  } else {
+                    _selectedProductIds.add(product.id);
+                  }
+                });
+              },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -243,6 +272,18 @@ class _StockScreenState extends State<StockScreen> {
             children: [
               Row(
                 children: [
+                  Checkbox(
+                    value: isSelected,
+                    onChanged: (value) {
+                      setState(() {
+                        if (value == true) {
+                          _selectedProductIds.add(product.id);
+                        } else {
+                          _selectedProductIds.remove(product.id);
+                        }
+                      });
+                    },
+                  ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,6 +364,19 @@ class _StockScreenState extends State<StockScreen> {
     );
   }
 
+  void _showBulkAssignDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => _BulkAssignDialog(
+        productIds: _selectedProductIds.toList(),
+        onAssigned: () {
+          _loadData();
+          setState(() => _selectedProductIds.clear());
+        },
+      ),
+    );
+  }
+
   void _showStockDialog(Product product) {
     showDialog(
       context: context,
@@ -355,7 +409,7 @@ class _StockEditDialogState extends State<_StockEditDialog> {
   final TextEditingController _stockController = TextEditingController();
   bool _isUpdating = false;
   String _error = '';
-  Map<String, String> _containerPaths = {}; // Cache for hierarchy paths
+  Map<String, String> _containerPaths = {};
 
   @override
   void initState() {
@@ -380,13 +434,11 @@ class _StockEditDialogState extends State<_StockEditDialog> {
       final paths = <String, String>{};
       for (final containerRef in currentStock.keys) {
         try {
-          // Find container by ref
           final container = widget.warehouses.firstWhere(
             (w) => w.ref == containerRef,
             orElse: () => throw Exception('Container not found'),
           );
           
-          // Get hierarchy path
           final hierarchyPath = await WarehouseService.getHierarchyPath(
             apiClient,
             container.id,
@@ -394,7 +446,7 @@ class _StockEditDialogState extends State<_StockEditDialog> {
           
           paths[containerRef] = hierarchyPath.map((w) => w.label).join(' > ');
         } catch (e) {
-          paths[containerRef] = containerRef; // Fallback to ref on error
+          paths[containerRef] = containerRef;
         }
       }
 
@@ -476,12 +528,10 @@ class _StockEditDialogState extends State<_StockEditDialog> {
   }
 
   String _getWarehouseLabel(String warehouseRef) {
-    // Return cached hierarchy path if available
     if (_containerPaths.containsKey(warehouseRef)) {
       return _containerPaths[warehouseRef]!;
     }
     
-    // Fallback to warehouse label
     final warehouse = widget.warehouses.firstWhere(
       (w) => w.ref == warehouseRef,
       orElse: () => Warehouse(
@@ -704,6 +754,130 @@ class _StockEditDialogState extends State<_StockEditDialog> {
                 ? 'Update'
                 : 'Add',
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BulkAssignDialog extends StatefulWidget {
+  final List<String> productIds;
+  final VoidCallback onAssigned;
+
+  const _BulkAssignDialog({
+    required this.productIds,
+    required this.onAssigned,
+  });
+
+  @override
+  State<_BulkAssignDialog> createState() => _BulkAssignDialogState();
+}
+
+class _BulkAssignDialogState extends State<_BulkAssignDialog> {
+  String? _selectedContainerRef;
+  bool _isUpdating = false;
+  String _error = '';
+
+  Future<void> _assign() async {
+    if (_selectedContainerRef == null) {
+      setState(() => _error = 'Please select a container');
+      return;
+    }
+
+    setState(() {
+      _isUpdating = true;
+      _error = '';
+    });
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final apiClient = ApiClient(authService);
+      final productService = ProductService(apiClient);
+
+      for (final productId in widget.productIds) {
+        await productService.updateStock(productId, _selectedContainerRef!, 1);
+      }
+
+      ContainerMemory.lastContainerRef = _selectedContainerRef;
+
+      if (mounted) {
+        widget.onAssigned();
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${widget.productIds.length} products assigned to container'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isUpdating = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Assign ${widget.productIds.length} Products to Container'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_error.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _error,
+                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            ContainerSelector(
+              value: _selectedContainerRef ?? ContainerMemory.lastContainerRef,
+              onChanged: _isUpdating
+                  ? null
+                  : (value) {
+                      setState(() => _selectedContainerRef = value);
+                    },
+              apiClient: ApiClient(Provider.of<AuthService>(context, listen: false)),
+              labelText: 'Select Container',
+              enabled: !_isUpdating,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isUpdating ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
+          onPressed: _isUpdating ? null : _assign,
+          icon: _isUpdating
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.inventory_2),
+          label: const Text('Assign'),
         ),
       ],
     );
