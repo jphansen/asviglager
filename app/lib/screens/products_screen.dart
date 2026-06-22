@@ -7,6 +7,7 @@ import '../models/photo.dart';
 import '../services/auth_service.dart';
 import '../services/product_service.dart';
 import '../services/photo_service.dart';
+import '../services/warehouse_service.dart';
 import '../services/api_client.dart';
 import 'edit_product_screen.dart';
 
@@ -22,6 +23,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   bool _isLoading = true;
   String? _error;
   final TextEditingController _searchController = TextEditingController();
+  Map<String, String> _containerPaths = {};
 
   @override
   void initState() {
@@ -52,6 +54,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           _products = products;
           _isLoading = false;
         });
+        _loadContainerPaths(products);
       }
     } catch (e) {
       if (mounted) {
@@ -61,6 +64,40 @@ class _ProductsScreenState extends State<ProductsScreen> {
         });
       }
     }
+  }
+
+  Future<void> _loadContainerPaths(List<Product> products) async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final apiClient = ApiClient(authService);
+      final allWarehouses = await WarehouseService.getWarehouses(apiClient);
+
+      final paths = <String, String>{};
+      for (final product in products) {
+        final stock = product.stockWarehouse;
+        if (stock == null || stock.isEmpty) continue;
+        for (final containerRef in stock.keys) {
+          if (paths.containsKey(containerRef)) continue;
+          try {
+            final container = allWarehouses.firstWhere(
+              (w) => w.ref == containerRef,
+              orElse: () => throw Exception('Container not found'),
+            );
+            final hierarchyPath = await WarehouseService.getHierarchyPath(
+              apiClient,
+              container.id,
+            );
+            paths[containerRef] = hierarchyPath.map((w) => w.label).join(' > ');
+          } catch (_) {
+            paths[containerRef] = containerRef;
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() => _containerPaths = paths);
+      }
+    } catch (_) {}
   }
 
   Future<void> _deleteProduct(Product product) async {
@@ -111,6 +148,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
         );
       }
     }
+  }
+
+  String _getContainerLabel(Product product) {
+    final stock = product.stockWarehouse;
+    if (stock == null || stock.isEmpty) return '';
+    final ref = stock.keys.first;
+    return _containerPaths[ref] ?? ref;
   }
 
   @override
@@ -235,12 +279,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        '${product.ref} • ${product.price.toStringAsFixed(2)} DKK',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
+                      child: (() {
+                        final containerLabel = _getContainerLabel(product);
+                        final containerPart = containerLabel.isNotEmpty ? ' • $containerLabel' : '';
+                        return Text(
+                          '${product.ref}$containerPart • ${product.price.toStringAsFixed(2)} DKK',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                        );
+                      })(),
                     ),
                     if (product.photos != null && product.photos!.isNotEmpty)
                       Container(
@@ -333,6 +381,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
               if (product.photos != null && product.photos!.isNotEmpty)
                 _buildPhotoGallery(product.photos!),
               _DetailRow('Reference:', product.ref),
+              () {
+                final containerLabel = _getContainerLabel(product);
+                if (containerLabel.isNotEmpty) {
+                  return _DetailRow('Container:', containerLabel);
+                }
+                return const SizedBox.shrink();
+              }(),
               _DetailRow('Price:', '${product.price.toStringAsFixed(2)} DKK'),
               if (product.barcode != null)
                 _DetailRow('Barcode:', product.barcode!),
