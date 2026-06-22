@@ -1,6 +1,6 @@
 """Authentication API endpoints."""
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 
@@ -13,19 +13,27 @@ from app.core.security import (
     get_current_active_user
 )
 from app.core.config import settings
+from app.core.logging import logger
 from app.db.mongodb import MongoDB
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     """
     OAuth2 compatible token login.
     Get an access token for future requests.
     """
     user = await authenticate_user(form_data.username, form_data.password)
     if not user:
+        logger.warning(
+            "Failed login attempt",
+            fields={
+                "username": form_data.username,
+                "client_host": request.client.host if request.client else None,
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -42,6 +50,14 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     refresh_token = create_refresh_token(
         data={"sub": user.username},
         expires_delta=refresh_token_expires
+    )
+    
+    logger.info(
+        "User logged in",
+        fields={
+            "username": user.username,
+            "client_host": request.client.host if request.client else None,
+        }
     )
     
     return {
@@ -145,6 +161,11 @@ async def register(user_data: UserCreate):
     user_dict["hashed_password"] = user_in_db.hashed_password
     
     await users_collection.insert_one(user_dict)
+    
+    logger.info(
+        "User registered",
+        fields={"username": user_data.username, "email": user_data.email}
+    )
     
     return User(**user_dict)
 

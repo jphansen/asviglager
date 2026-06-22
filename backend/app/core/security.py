@@ -3,10 +3,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.config import settings
+from app.core.logging import logger
 from app.models.user import TokenData, UserInDB
 from app.db.mongodb import MongoDB
 
@@ -111,7 +112,7 @@ async def authenticate_user(username: str, password: str) -> Optional[UserInDB]:
     return user
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
+async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)) -> UserInDB:
     """
     Dependency to get the current authenticated user from JWT token.
     
@@ -141,6 +142,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
             raise credentials_exception
         token_data = TokenData(username=username)
     except JWTError:
+        logger.warning(
+            "Invalid JWT token",
+            fields={"client_host": request.client.host if request.client else None}
+        )
         raise credentials_exception
     
     db = MongoDB.get_db()
@@ -148,6 +153,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
     
     user_data = await users_collection.find_one({"username": token_data.username})
     if user_data is None:
+        logger.warning(
+            "Token for non-existent user",
+            fields={"username": token_data.username}
+        )
         raise credentials_exception
     
     user = UserInDB(**user_data)
@@ -170,6 +179,10 @@ async def get_current_active_user(
         HTTPException: If user is inactive
     """
     if not current_user.is_active:
+        logger.warning(
+            "Inactive user attempted access",
+            fields={"username": current_user.username}
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"

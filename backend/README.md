@@ -11,7 +11,8 @@ FastAPI backend for the Asviglager asset management system with MongoDB database
 - **Flexible Schema** - Supports both MVP minimal products and full Dolibarr imports
 - **MongoDB** - NoSQL database for flexible product data
 - **Full-text Search** - Search products by label
-- **Barcode Support** - Lookup products by barcode
+- **Barcode Support** - Lookup products by barcode (full or partial match)
+- **Structured Logging** - LogBull integration for centralized log management
 - **UTF-8 Support** - Handles Danish/Swedish characters (å, ä, ö)
 
 ## Project Structure
@@ -24,7 +25,8 @@ backend/
 │   │   └── products.py     # Product CRUD endpoints
 │   ├── core/
 │   │   ├── config.py       # Application configuration
-│   │   └── security.py     # JWT and password utilities
+│   │   ├── security.py     # JWT and password utilities
+│   │   └── logging.py      # LogBull logging integration
 │   ├── db/
 │   │   ├── mongodb.py      # MongoDB connection
 │   │   └── indexes.py      # Database indexes
@@ -181,10 +183,15 @@ curl -X GET http://localhost:8000/api/v1/products/ref/100001 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-#### Get Product by Barcode
+#### Get Product by Barcode (full or partial match)
 
 ```bash
+# Exact barcode lookup
 curl -X GET http://localhost:8000/api/v1/products/barcode/5733020001409 \
+  -H "Authorization: Bearer $TOKEN"
+
+# Partial barcode also works (e.g., finding "6921815628881" with just "8881")
+curl -X GET http://localhost:8000/api/v1/products/barcode/8881 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -303,6 +310,43 @@ MongoDB indexes for performance:
 - `username` - Unique index for users
 - `email` - Unique sparse index for users
 
+## Logging
+
+The backend uses [LogBull](https://logbull.com) for centralized structured logging. All application events are sent to the LogBull server configured via environment variables.
+
+### Logged Events
+
+| Category | Events |
+|----------|--------|
+| **Auth** | Login success/failure, JWT validation errors, inactive user access |
+| **HTTP** | Every request with method, path, status code, duration, client IP |
+| **Database** | Connection success/failure, index creation |
+| **Application** | Startup/shutdown lifecycle, error conditions |
+
+### Log Format
+
+Logs include structured fields for easy querying. Example:
+
+```python
+logger.info("User logged in", fields={
+    "username": "john_doe",
+    "client_host": "192.168.1.100"
+})
+```
+
+### Scoped Logging
+
+Use `with_context` for scoped session logging:
+
+```python
+session_logger = logger.with_context({"session_id": "abc123"})
+session_logger.info("Processing request", fields={"action": "purchase"})
+```
+
+### Graceful Degradation
+
+If LogBull is unreachable or the `logbull` package is not installed, all messages still print to stdout with level prefixes (✓, ⚠, ✗).
+
 ## Development
 
 ### Running Tests
@@ -336,6 +380,9 @@ See `.env.example` for all available configuration options:
 - `API_V1_PREFIX` - API route prefix (default: /api/v1)
 - `CORS_ORIGINS` - Allowed CORS origins (JSON array)
 - `ENVIRONMENT` - Environment name (development/production)
+- `LOGBULL_HOST` - LogBull server URL (default: http://vps05.asvig.int:4005)
+- `LOGBULL_PROJECT_ID` - LogBull project ID (default: 251ead90-0141-40b8-9e92-3aca32707083)
+- `LOGBULL_ENABLED` - Enable/disable LogBull logging (default: true)
 
 ## Security Notes
 

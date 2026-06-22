@@ -16,13 +16,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.security import get_password_hash
+from app.core.logging import logger
 from app.db.mongodb import MongoDB
 from app.core.config import settings
 
 
 async def create_admin_user():
     """Create the admin user if it doesn't exist."""
-    print("🔧 Creating admin user...")
+    logger.info("Creating admin user")
     
     try:
         # Connect to MongoDB
@@ -34,7 +35,7 @@ async def create_admin_user():
         existing_admin = await users_collection.find_one({"username": "admin"})
         
         if existing_admin:
-            print("⚠️  Admin user already exists. Skipping creation.")
+            logger.warning("Admin user already exists — skipping creation")
             return
         
         # Create admin user
@@ -48,17 +49,12 @@ async def create_admin_user():
         result = await users_collection.insert_one(admin_user)
         
         if result.inserted_id:
-            print("✓ Admin user created successfully!")
-            print()
-            print("  Username: admin")
-            print("  Password: admin123")
-            print()
-            print("  ⚠️  IMPORTANT: Please change this password after first login!")
+            logger.info("Admin user created successfully")
         else:
-            print("✗ Failed to create admin user")
+            logger.error("Failed to create admin user")
     
     except Exception as e:
-        print(f"✗ Error creating admin user: {e}")
+        logger.error("Error creating admin user", fields={"error": str(e)})
         raise
     
     finally:

@@ -51,6 +51,20 @@ class Settings(BaseSettings):
         default="development",
         description="Application environment"
     )
+
+    # LogBull Configuration
+    logbull_host: str = Field(
+        default="http://vps05.asvig.int:4005",
+        description="LogBull server host"
+    )
+    logbull_project_id: str = Field(
+        default="251ead90-0141-40b8-9e92-3aca32707083",
+        description="LogBull project ID"
+    )
+    logbull_enabled: bool = Field(
+        default=True,
+        description="Enable LogBull logging"
+    )
     
     model_config = SettingsConfigDict(
         env_file=".env",

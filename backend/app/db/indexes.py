@@ -2,6 +2,8 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import pymongo
 
+from app.core.logging import logger
+
 
 async def create_indexes(db: AsyncIOMotorDatabase):
     """Create all necessary indexes for the application."""
@@ -16,45 +18,45 @@ async def create_indexes(db: AsyncIOMotorDatabase):
             unique=True,
             name="idx_ref_unique"
         )
-        print("✓ Created unique index on products.ref")
+        logger.info("Created unique index", fields={"collection": "products", "field": "ref"})
         
         # Create regular index on barcode for lookup (not unique since many products have null)
         await products_collection.create_index(
             "barcode",
             name="idx_barcode"
         )
-        print("✓ Created index on products.barcode")
+        logger.info("Created index", fields={"collection": "products", "field": "barcode"})
         
         # Create text index on label for full-text search
         await products_collection.create_index(
             [("label", pymongo.TEXT)],
             name="idx_label_text"
         )
-        print("✓ Created text index on products.label")
+        logger.info("Created text index", fields={"collection": "products", "field": "label"})
         
         # Create index on date_creation for sorting
         await products_collection.create_index(
             [("date_creation", pymongo.DESCENDING)],
             name="idx_date_creation_desc"
         )
-        print("✓ Created index on products.date_creation")
+        logger.info("Created index", fields={"collection": "products", "field": "date_creation"})
         
         # Create index on deleted field for filtering
         await products_collection.create_index(
             "deleted",
             name="idx_deleted"
         )
-        print("✓ Created index on products.deleted")
+        logger.info("Created index", fields={"collection": "products", "field": "deleted"})
         
         # Create compound index for common queries
         await products_collection.create_index(
             [("deleted", pymongo.ASCENDING), ("date_creation", pymongo.DESCENDING)],
             name="idx_deleted_date_compound"
         )
-        print("✓ Created compound index on products.deleted + date_creation")
+        logger.info("Created compound index", fields={"collection": "products", "fields": "deleted+date_creation"})
         
     except Exception as e:
-        print(f"✗ Error creating products indexes: {e}")
+        logger.error("Error creating products indexes", fields={"error": str(e)})
         raise
     
     # Users collection indexes
@@ -67,7 +69,7 @@ async def create_indexes(db: AsyncIOMotorDatabase):
             unique=True,
             name="idx_username_unique"
         )
-        print("✓ Created unique index on users.username")
+        logger.info("Created unique index", fields={"collection": "users", "field": "username"})
         
         # Create unique index on email (if provided)
         await users_collection.create_index(
@@ -76,10 +78,10 @@ async def create_indexes(db: AsyncIOMotorDatabase):
             sparse=True,
             name="idx_email_unique_sparse"
         )
-        print("✓ Created unique sparse index on users.email")
+        logger.info("Created unique sparse index", fields={"collection": "users", "field": "email"})
         
     except Exception as e:
-        print(f"✗ Error creating users indexes: {e}")
+        logger.error("Error creating users indexes", fields={"error": str(e)})
         raise
     
     # Warehouses collection indexes
@@ -92,45 +94,45 @@ async def create_indexes(db: AsyncIOMotorDatabase):
             unique=True,
             name="idx_ref_unique"
         )
-        print("✓ Created unique index on warehouses.ref")
+        logger.info("Created unique index", fields={"collection": "warehouses", "field": "ref"})
         
         # Create text index on label and description for full-text search
         await warehouses_collection.create_index(
             [("label", pymongo.TEXT), ("description", pymongo.TEXT)],
             name="idx_label_description_text"
         )
-        print("✓ Created text index on warehouses.label + description")
+        logger.info("Created text index", fields={"collection": "warehouses", "fields": "label+description"})
         
         # Create index on date_creation for sorting
         await warehouses_collection.create_index(
             [("date_creation", pymongo.DESCENDING)],
             name="idx_date_creation_desc"
         )
-        print("✓ Created index on warehouses.date_creation")
+        logger.info("Created index", fields={"collection": "warehouses", "field": "date_creation"})
         
         # Create index on deleted field for filtering
         await warehouses_collection.create_index(
             "deleted",
             name="idx_deleted"
         )
-        print("✓ Created index on warehouses.deleted")
+        logger.info("Created index", fields={"collection": "warehouses", "field": "deleted"})
         
         # Create index on statut for filtering
         await warehouses_collection.create_index(
             "statut",
             name="idx_statut"
         )
-        print("✓ Created index on warehouses.statut")
+        logger.info("Created index", fields={"collection": "warehouses", "field": "statut"})
         
         # Create compound index for common queries
         await warehouses_collection.create_index(
             [("deleted", pymongo.ASCENDING), ("date_creation", pymongo.DESCENDING)],
             name="idx_deleted_date_compound"
         )
-        print("✓ Created compound index on warehouses.deleted + date_creation")
+        logger.info("Created compound index", fields={"collection": "warehouses", "fields": "deleted+date_creation"})
         
     except Exception as e:
-        print(f"✗ Error creating warehouses indexes: {e}")
+        logger.error("Error creating warehouses indexes", fields={"error": str(e)})
         raise
     
-    print("✓ All indexes created successfully")
+    logger.info("All indexes created successfully")

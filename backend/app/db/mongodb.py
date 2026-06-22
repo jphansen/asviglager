@@ -3,6 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Optional
 
 from app.core.config import settings
+from app.core.logging import logger
 
 
 class MongoDB:
@@ -17,9 +18,9 @@ class MongoDB:
             cls.client = AsyncIOMotorClient(settings.mongodb_uri)
             # Test the connection
             await cls.client.admin.command('ping')
-            print(f"✓ Connected to MongoDB: {settings.mongodb_db_name}")
+            logger.info(f"Connected to MongoDB", fields={"db": settings.mongodb_db_name})
         except Exception as e:
-            print(f"✗ Failed to connect to MongoDB: {e}")
+            logger.error(f"Failed to connect to MongoDB", fields={"error": str(e)})
             raise
     
     @classmethod
@@ -27,7 +28,7 @@ class MongoDB:
         """Close MongoDB connection."""
         if cls.client:
             cls.client.close()
-            print("✓ Closed MongoDB connection")
+            logger.info("Closed MongoDB connection")
     
     @classmethod
     def get_db(cls):

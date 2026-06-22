@@ -284,6 +284,27 @@ flutter test  # Run tests
 
 ## Recent Changes
 
+### v0.5.0 (June 2026)
+- **LogBull Logging Integration**:
+  - Added structured logging to LogBull for all backend operations
+  - Auth events (login success/failure, JWT errors, inactive user access)
+  - HTTP request logging middleware (method, path, status, duration, client IP)
+  - Database connection and index creation logging
+  - Graceful fallback to stdout if LogBull is unavailable
+- **Partial Barcode Search**:
+  - Barcode lookup now supports partial matching (e.g., search "8881" finds "6921815628881")
+  - Backend uses MongoDB `$regex` for flexible barcode searches
+- **Vite Proxy for CORS-Free Development**:
+  - Added Vite dev server proxy to route `/api/v1` requests through localhost
+  - Rewrites redirect `Location` headers so redirects stay proxied
+  - Eliminates CORS errors when accessing from other devices via `--host`
+- **Currency Display Fix**:
+  - Changed price formatting from EUR (€) to DKK (kr.) throughout the web frontend
+  - Prices now display in Danish Kroner format without currency symbol
+- **API URL Fixes**:
+  - Removed trailing slashes from all API service URLs to prevent FastAPI redirects
+  - Improved login page error handling to show network/CORS errors instead of masking them
+
 ### v0.4.0 (January 2026)
 - **JWT Refresh Token System**:
   - Added 30-day refresh tokens alongside 24-hour access tokens
