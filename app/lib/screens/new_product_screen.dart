@@ -10,6 +10,7 @@ import '../services/product_service.dart';
 import '../services/photo_service.dart';
 import '../services/api_client.dart';
 import '../widgets/container_selector.dart';
+import '../utils/container_memory.dart';
 
 class NewProductScreen extends StatefulWidget {
   const NewProductScreen({super.key});
@@ -19,8 +20,6 @@ class NewProductScreen extends StatefulWidget {
 }
 
 class _NewProductScreenState extends State<NewProductScreen> {
-  static String? _lastContainerRef;
-
   final _formKey = GlobalKey<FormState>();
   final _refController = TextEditingController();
   final _nameController = TextEditingController();
@@ -202,7 +201,7 @@ class _NewProductScreenState extends State<NewProductScreen> {
       // Associate container with product if selected
       if (_selectedContainerRef != null) {
         try {
-          await productService.updateStock(createdProduct.id, _selectedContainerRef!, 0);
+          await productService.updateStock(createdProduct.id, _selectedContainerRef!, 1);
         } catch (e) {
           // Container association failed, but product was created
           if (mounted) {
@@ -419,10 +418,10 @@ class _NewProductScreenState extends State<NewProductScreen> {
 
               // Container
               ContainerSelector(
-                value: _selectedContainerRef ?? _lastContainerRef,
+                value: _selectedContainerRef ?? ContainerMemory.lastContainerRef,
                 onChanged: (value) {
                   setState(() => _selectedContainerRef = value);
-                  _lastContainerRef = value;
+                  ContainerMemory.lastContainerRef = value;
                 },
                 apiClient: ApiClient(Provider.of<AuthService>(context, listen: false)),
                 labelText: 'Container (optional)',

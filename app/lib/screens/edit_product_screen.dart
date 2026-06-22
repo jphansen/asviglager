@@ -11,6 +11,8 @@ import '../services/auth_service.dart';
 import '../services/product_service.dart';
 import '../services/photo_service.dart';
 import '../services/api_client.dart';
+import '../widgets/container_selector.dart';
+import '../utils/container_memory.dart';
 
 class EditProductScreen extends StatefulWidget {
   final Product product;
@@ -33,6 +35,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
   List<Photo> _existingPhotos = [];
   bool _isLoading = false;
   bool _isUploadingPhoto = false;
+  String? _selectedContainerRef;
 
   @override
   void initState() {
@@ -44,6 +47,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
     );
     _barcodeController = TextEditingController(text: widget.product.barcode ?? '');
     _descriptionController = TextEditingController(text: widget.product.description ?? '');
+    
+    // Get existing container from stock
+    if (widget.product.stockWarehouse != null && widget.product.stockWarehouse!.isNotEmpty) {
+      _selectedContainerRef = widget.product.stockWarehouse!.keys.first;
+    }
     
     // Load existing photos
     if (widget.product.photos != null && widget.product.photos!.isNotEmpty) {
@@ -298,6 +306,22 @@ class _EditProductScreenState extends State<EditProductScreen> {
       );
 
       await productService.updateProduct(widget.product.id, updatedProduct);
+
+      // Update container association if changed
+      if (_selectedContainerRef != null) {
+        try {
+          await productService.updateStock(widget.product.id, _selectedContainerRef!, 1);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Product updated but container association failed: $e'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -573,6 +597,18 @@ class _EditProductScreenState extends State<EditProductScreen> {
                     tooltip: 'Scan barcode',
                   ),
                 ),
+              ),
+              const SizedBox(height: 16),
+
+              // Container
+              ContainerSelector(
+                value: _selectedContainerRef ?? ContainerMemory.lastContainerRef,
+                onChanged: (value) {
+                  setState(() => _selectedContainerRef = value);
+                  ContainerMemory.lastContainerRef = value;
+                },
+                apiClient: ApiClient(Provider.of<AuthService>(context, listen: false)),
+                labelText: 'Container (optional)',
               ),
               const SizedBox(height: 16),
 
