@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/product_service.dart';
 import '../services/photo_service.dart';
 import '../services/api_client.dart';
+import '../widgets/container_selector.dart';
 
 class NewProductScreen extends StatefulWidget {
   const NewProductScreen({super.key});
@@ -18,6 +19,8 @@ class NewProductScreen extends StatefulWidget {
 }
 
 class _NewProductScreenState extends State<NewProductScreen> {
+  static String? _lastContainerRef;
+
   final _formKey = GlobalKey<FormState>();
   final _refController = TextEditingController();
   final _nameController = TextEditingController();
@@ -27,6 +30,7 @@ class _NewProductScreenState extends State<NewProductScreen> {
   
   File? _imageFile;
   String? _uploadedPhotoId;
+  String? _selectedContainerRef;
   bool _isLoading = false;
   bool _isGeneratingId = false;
   bool _isUploadingPhoto = false;
@@ -194,6 +198,23 @@ class _NewProductScreenState extends State<NewProductScreen> {
       );
 
       final createdProduct = await productService.createProduct(product);
+
+      // Associate container with product if selected
+      if (_selectedContainerRef != null) {
+        try {
+          await productService.updateStock(createdProduct.id, _selectedContainerRef!, 0);
+        } catch (e) {
+          // Container association failed, but product was created
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Product created but container association failed: $e'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
 
       // Link photo to product if one was uploaded
       if (_uploadedPhotoId != null) {
@@ -393,6 +414,18 @@ class _NewProductScreenState extends State<NewProductScreen> {
                     tooltip: 'Scan barcode',
                   ),
                 ),
+              ),
+              const SizedBox(height: 16),
+
+              // Container
+              ContainerSelector(
+                value: _selectedContainerRef ?? _lastContainerRef,
+                onChanged: (value) {
+                  setState(() => _selectedContainerRef = value);
+                  _lastContainerRef = value;
+                },
+                apiClient: ApiClient(Provider.of<AuthService>(context, listen: false)),
+                labelText: 'Container (optional)',
               ),
               const SizedBox(height: 16),
 

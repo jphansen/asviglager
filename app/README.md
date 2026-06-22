@@ -11,6 +11,7 @@ Flutter mobile application for the Asviglager asset management system.
   - Product name
   - Photo capture using camera
   - Barcode scanning
+  - Container assignment (Warehouse > Location > Container) — remembers last selection per session
   - Selling price (optional)
   - Description (optional)
 
@@ -101,15 +102,20 @@ lib/
 ├── config/
 │   └── api_config.dart      # API configuration
 ├── models/
-│   └── product.dart         # Product data model
+│   ├── product.dart         # Product data model
+│   └── warehouse.dart       # Warehouse model + enums
 ├── services/
 │   ├── auth_service.dart    # Authentication service
-│   └── product_service.dart # Product API service
-└── screens/
-    ├── login_screen.dart    # Login screen
-    ├── home_screen.dart     # Main menu
-    ├── products_screen.dart # Product list
-    └── new_product_screen.dart # Create product
+│   ├── product_service.dart # Product API service
+│   └── warehouse_service.dart # Warehouse/container service
+├── screens/
+│   ├── login_screen.dart    # Login screen
+│   ├── home_screen.dart     # Main menu
+│   ├── products_screen.dart # Product list
+│   ├── new_product_screen.dart # Create product
+│   └── stock_screen.dart    # Stock management
+└── widgets/
+    └── container_selector.dart # Cascading warehouse/location/container picker
 ```
 
 ## Dependencies
@@ -175,7 +181,5 @@ All core features have been implemented and tested:
 
 - Product editing
 - Product deletion
-- Warehouse management
 - Offline mode
-- Image upload to backend
 - Product history
