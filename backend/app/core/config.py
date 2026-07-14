@@ -54,11 +54,11 @@ class Settings(BaseSettings):
 
     # LogBull Configuration
     logbull_host: str = Field(
-        default="http://vps05.asvig.int:4005",
+        default="http://hedensted50:4005",
         description="LogBull server host"
     )
     logbull_project_id: str = Field(
-        default="251ead90-0141-40b8-9e92-3aca32707083",
+        default="23a3ff1f-61b9-4cb0-8802-b4438bceb411",
         description="LogBull project ID"
     )
     logbull_enabled: bool = Field(
