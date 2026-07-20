@@ -5,25 +5,26 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../models/product.dart';
+import '../models/item.dart';
 import '../models/photo.dart';
 import '../services/auth_service.dart';
-import '../services/product_service.dart';
+import '../services/item_service.dart';
 import '../services/photo_service.dart';
+import '../services/category_service.dart';
 import '../services/api_client.dart';
 import '../widgets/container_selector.dart';
 import '../utils/container_memory.dart';
 
-class EditProductScreen extends StatefulWidget {
-  final Product product;
+class EditItemScreen extends StatefulWidget {
+  final Item item;
 
-  const EditProductScreen({super.key, required this.product});
+  const EditItemScreen({super.key, required this.item});
 
   @override
-  State<EditProductScreen> createState() => _EditProductScreenState();
+  State<EditItemScreen> createState() => _EditItemScreenState();
 }
 
-class _EditProductScreenState extends State<EditProductScreen> {
+class _EditItemScreenState extends State<EditItemScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _refController;
   late final TextEditingController _nameController;
@@ -33,6 +34,8 @@ class _EditProductScreenState extends State<EditProductScreen> {
   
   List<String> _existingPhotoIds = [];
   List<Photo> _existingPhotos = [];
+  List<String> _categories = [];
+  TextEditingController? _categoryFieldController;
   bool _isLoading = false;
   bool _isUploadingPhoto = false;
   String? _selectedContainerRef;
@@ -40,24 +43,24 @@ class _EditProductScreenState extends State<EditProductScreen> {
   @override
   void initState() {
     super.initState();
-    _refController = TextEditingController(text: widget.product.ref);
-    _nameController = TextEditingController(text: widget.product.label);
+    _refController = TextEditingController(text: widget.item.ref);
+    _nameController = TextEditingController(text: widget.item.label);
     _priceController = TextEditingController(
-      text: widget.product.price > 0 ? widget.product.price.toString() : '',
+      text: widget.item.price > 0 ? widget.item.price.toString() : '',
     );
-    _barcodeController = TextEditingController(text: widget.product.barcode ?? '');
-    _descriptionController = TextEditingController(text: widget.product.description ?? '');
+    _barcodeController = TextEditingController(text: widget.item.barcode ?? '');
+    _descriptionController = TextEditingController(text: widget.item.description ?? '');
     
-    // Get existing container from stock
-    if (widget.product.stockWarehouse != null && widget.product.stockWarehouse!.isNotEmpty) {
-      _selectedContainerRef = widget.product.stockWarehouse!.keys.first;
+    if (widget.item.stockWarehouse != null && widget.item.stockWarehouse!.isNotEmpty) {
+      _selectedContainerRef = widget.item.stockWarehouse!.keys.first;
     }
     
-    // Load existing photos
-    if (widget.product.photos != null && widget.product.photos!.isNotEmpty) {
-      _existingPhotoIds = List.from(widget.product.photos!);
+    if (widget.item.photos != null && widget.item.photos!.isNotEmpty) {
+      _existingPhotoIds = List.from(widget.item.photos!);
       _loadExistingPhotos();
     }
+    
+    _loadCategories();
   }
 
   @override
@@ -68,6 +71,29 @@ class _EditProductScreenState extends State<EditProductScreen> {
     _barcodeController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final apiClient = ApiClient(authService);
+      final categoryService = CategoryService(apiClient);
+      var categories = await categoryService.getCategories();
+      
+      if (categories.isEmpty) {
+        final itemService = ItemService(apiClient);
+        final items = await itemService.getItems(limit: 100);
+        categories = await categoryService.extractCategoriesFromItems(items);
+      }
+      
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+        });
+      }
+    } catch (e) {
+      // Silently fail
+    }
   }
 
   Future<void> _loadExistingPhotos() async {
@@ -112,32 +138,27 @@ class _EditProductScreenState extends State<EditProductScreen> {
           _isUploadingPhoto = true;
         });
 
-        // Upload photo to backend immediately
         try {
           final authService = Provider.of<AuthService>(context, listen: false);
           final apiClient = ApiClient(authService);
           final photoService = PhotoService(apiClient);
           
-          // Convert image to base64
           final bytes = await imageFile.readAsBytes();
           final base64Image = base64Encode(bytes);
           
-          // Check size and warn if too large
           final sizeInMB = bytes.length / (1024 * 1024);
           if (sizeInMB > 2) {
             throw Exception('Image too large (${sizeInMB.toStringAsFixed(1)}MB). Please try again.');
           }
           
-          // Upload to backend
           final uploadedPhoto = await photoService.uploadPhoto(
             filename: photo.name,
             contentType: 'image/jpeg',
             base64Data: base64Image,
-            description: 'Product photo',
+            description: 'Item photo',
           );
           
-          // Link photo to product immediately
-          await photoService.addPhotoToProduct(widget.product.id, uploadedPhoto.id);
+          await photoService.addPhotoToProduct(widget.item.id, uploadedPhoto.id);
           
           if (mounted) {
             setState(() {
@@ -146,15 +167,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
               _isUploadingPhoto = false;
             });
             
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Photo uploaded and added to product'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Photo uploaded and added to item'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
           }
         } catch (e) {
           if (mounted) {
@@ -192,7 +211,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'unlink'),
-            child: const Text('Unlink from Product'),
+            child: const Text('Unlink from Item'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'delete'),
@@ -211,7 +230,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
       final photoService = PhotoService(apiClient);
       
       if (action == 'delete') {
-        // Delete the photo document permanently
         await photoService.deletePhoto(photoId);
         
         if (mounted) {
@@ -228,8 +246,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
           );
         }
       } else if (action == 'unlink') {
-        // Just unlink from product, keep the photo in database
-        await photoService.removePhotoFromProduct(widget.product.id, photoId);
+        await photoService.removePhotoFromProduct(widget.item.id, photoId);
         
         if (mounted) {
           setState(() {
@@ -239,7 +256,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
           
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Photo unlinked from product (photo kept in database)'),
+              content: Text('Photo unlinked from item (photo kept in database)'),
               backgroundColor: Colors.green,
             ),
           );
@@ -272,7 +289,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
     }
   }
 
-  Future<void> _saveProduct() async {
+  Future<void> _saveItem() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -280,7 +297,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final apiClient = ApiClient(authService);
-      final productService = ProductService(apiClient);
+      final itemService = ItemService(apiClient);
 
       double? price;
       if (_priceController.text.isNotEmpty) {
@@ -290,32 +307,37 @@ class _EditProductScreenState extends State<EditProductScreen> {
         }
       }
 
-      final updatedProduct = Product(
-        id: widget.product.id,
+      final category = _categoryFieldController?.text.trim() ?? '';
+      if (category.isNotEmpty) {
+        await CategoryService.addToCache(category);
+      }
+
+      final updatedItem = Item(
+        id: widget.item.id,
         ref: _refController.text.trim(),
         label: _nameController.text.trim(),
+        category: category.isNotEmpty ? category : null,
         price: price ?? 0.0,
         barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
         description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-        type: widget.product.type,
-        status: widget.product.status,
-        statusBuy: widget.product.statusBuy,
-        deleted: widget.product.deleted,
-        dateCreation: widget.product.dateCreation,
+        type: widget.item.type,
+        status: widget.item.status,
+        statusBuy: widget.item.statusBuy,
+        deleted: widget.item.deleted,
+        dateCreation: widget.item.dateCreation,
         dateModification: DateTime.now(),
       );
 
-      await productService.updateProduct(widget.product.id, updatedProduct);
+      await itemService.updateItem(widget.item.id, updatedItem);
 
-      // Update container association if changed
       if (_selectedContainerRef != null) {
         try {
-          await productService.updateStock(widget.product.id, _selectedContainerRef!, 1);
+          await itemService.updateStock(widget.item.id, _selectedContainerRef!, 1);
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Product updated but container association failed: $e'),
+                content: Text('Item updated but container association failed: $e'),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -326,7 +348,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Product updated successfully!'),
+            content: Text('Item updated successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -336,7 +358,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error updating product: $e'),
+            content: Text('Error updating item: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -353,12 +375,12 @@ class _EditProductScreenState extends State<EditProductScreen> {
     return base64Decode(base64String);
   }
 
-  Future<void> _deleteProduct() async {
+  Future<void> _deleteItem() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Product'),
-        content: Text('Are you sure you want to delete "${widget.product.label}"? This action cannot be undone.'),
+        title: const Text('Delete Item'),
+        content: Text('Are you sure you want to delete "${widget.item.label}"? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -378,14 +400,14 @@ class _EditProductScreenState extends State<EditProductScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final apiClient = ApiClient(authService);
-      final productService = ProductService(apiClient);
+      final itemService = ItemService(apiClient);
       
-      await productService.deleteProduct(widget.product.id);
+      await itemService.deleteItem(widget.item.id);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Product deleted successfully'),
+            content: Text('Item deleted successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -395,7 +417,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error deleting product: $e'),
+            content: Text('Error deleting item: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -407,13 +429,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Product'),
+        title: const Text('Edit Item'),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) async {
               if (value == 'delete') {
-                await _deleteProduct();
+                await _deleteItem();
               }
             },
             itemBuilder: (BuildContext context) => [
@@ -423,7 +445,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                   children: [
                     Icon(Icons.delete, color: Colors.red),
                     SizedBox(width: 8),
-                    Text('Delete Product', style: TextStyle(color: Colors.red)),
+                    Text('Delete Item', style: TextStyle(color: Colors.red)),
                   ],
                 ),
               ),
@@ -438,12 +460,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Existing Photos
               if (_existingPhotos.isNotEmpty) ...[
                 Row(
                   children: [
                     const Text(
-                      'Product Photos',
+                      'Item Photos',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
@@ -507,7 +528,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 const SizedBox(height: 24),
               ],
 
-              // Add New Photo
               GestureDetector(
                 onTap: _isUploadingPhoto ? null : _takePicture,
                 child: Container(
@@ -558,34 +578,85 @@ class _EditProductScreenState extends State<EditProductScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Product Reference (ID) - Read only
               TextFormField(
                 controller: _refController,
                 decoration: const InputDecoration(
-                  labelText: 'Product ID / Reference',
+                  labelText: 'Item ID / Reference',
                   prefixIcon: Icon(Icons.tag_rounded),
                 ),
                 enabled: false,
               ),
               const SizedBox(height: 16),
 
-              // Product Name
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Product Name *',
+                  labelText: 'Item Name *',
                   prefixIcon: Icon(Icons.inventory_2_rounded),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Product name is required';
+                    return 'Item name is required';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 16),
 
-              // Barcode
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<String>.empty();
+                  }
+                  return _categories.where((String category) {
+                    return category.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                  });
+                },
+                onSelected: (String selection) {
+                  setState(() {
+                    _categoryFieldController?.text = selection;
+                  });
+                },
+                initialValue: TextEditingValue(text: widget.item.category ?? ''),
+                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  _categoryFieldController = controller;
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      labelText: 'Category (optional)',
+                      prefixIcon: Icon(Icons.category_rounded),
+                      helperText: 'Select from list or type new category',
+                    ),
+                  );
+                },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          children: options.map((String category) {
+                            return InkWell(
+                              onTap: () => onSelected(category),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(category),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+
               TextFormField(
                 controller: _barcodeController,
                 decoration: InputDecoration(
@@ -600,7 +671,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Container
               ContainerSelector(
                 value: _selectedContainerRef ?? ContainerMemory.lastContainerRef,
                 onChanged: (value) {
@@ -612,7 +682,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Price
               TextFormField(
                 controller: _priceController,
                 decoration: const InputDecoration(
@@ -624,7 +693,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Description
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
@@ -635,9 +703,8 @@ class _EditProductScreenState extends State<EditProductScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Save Button
               ElevatedButton(
-                onPressed: _isLoading ? null : _saveProduct,
+                onPressed: _isLoading ? null : _saveItem,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4CAF50),
                   foregroundColor: Colors.white,
@@ -651,7 +718,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : const Text('Update Product', style: TextStyle(fontSize: 16)),
+                    : const Text('Update Item', style: TextStyle(fontSize: 16)),
               ),
             ],
           ),

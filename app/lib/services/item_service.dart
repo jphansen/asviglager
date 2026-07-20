@@ -1,14 +1,14 @@
 import 'dart:convert';
 import '../config/api_config.dart';
-import '../models/product.dart';
+import '../models/item.dart';
 import 'api_client.dart';
 
-class ProductService {
+class ItemService {
   final ApiClient apiClient;
 
-  ProductService(this.apiClient);
+  ItemService(this.apiClient);
 
-  Future<List<Product>> getProducts({int skip = 0, int limit = 50, String? search}) async {
+  Future<List<Item>> getItems({int skip = 0, int limit = 50, String? search}) async {
     try {
       final queryParams = {
         'skip': skip.toString(),
@@ -21,69 +21,69 @@ class ProductService {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.map((json) => Product.fromJson(json)).toList();
+        return data.map((json) => Item.fromJson(json)).toList();
       } else {
-        throw Exception('Failed to load products: ${response.statusCode}');
+        throw Exception('Failed to load items: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error fetching products: $e');
+      throw Exception('Error fetching items: $e');
     }
   }
 
-  Future<Product> getProductByRef(String ref) async {
+  Future<Item> getItemByRef(String ref) async {
     try {
       final url = '${ApiConfig.baseUrl}${ApiConfig.productByRef}/$ref';
       final response = await apiClient.get(url);
 
       if (response.statusCode == 200) {
-        return Product.fromJson(json.decode(response.body));
+        return Item.fromJson(json.decode(response.body));
       } else {
-        throw Exception('Product not found');
+        throw Exception('Item not found');
       }
     } catch (e) {
-      throw Exception('Error fetching product: $e');
+      throw Exception('Error fetching item: $e');
     }
   }
 
-  Future<Product> createProduct(Product product) async {
+  Future<Item> createItem(Item item) async {
     try {
       final url = '${ApiConfig.baseUrl}${ApiConfig.products}';
-      final response = await apiClient.post(url, body: product.toJson());
+      final response = await apiClient.post(url, body: item.toJson());
 
       if (response.statusCode == 201) {
-        return Product.fromJson(json.decode(response.body));
+        return Item.fromJson(json.decode(response.body));
       } else {
         final error = json.decode(response.body);
-        throw Exception(error['detail'] ?? 'Failed to create product');
+        throw Exception(error['detail'] ?? 'Failed to create item');
       }
     } catch (e) {
-      throw Exception('Error creating product: $e');
+      throw Exception('Error creating item: $e');
     }
   }
 
-  Future<Product> updateProduct(String productId, Product product) async {
+  Future<Item> updateItem(String itemId, Item item) async {
     try {
-      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId';
-      final response = await apiClient.put(url, body: product.toJson());
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$itemId';
+      final response = await apiClient.put(url, body: item.toJson());
 
       if (response.statusCode == 200) {
-        return Product.fromJson(json.decode(response.body));
+        return Item.fromJson(json.decode(response.body));
       } else {
         final error = json.decode(response.body);
-        throw Exception(error['detail'] ?? 'Failed to update product');
+        throw Exception(error['detail'] ?? 'Failed to update item');
       }
     } catch (e) {
-      throw Exception('Error updating product: $e');
+      throw Exception('Error updating item: $e');
     }
   }
 
-  Future<Product> updateStock(String productId, String warehouseRef, double items) async {
+  Future<Item> updateStock(String itemId, String warehouseRef, double items) async {
     try {
-      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock/$warehouseRef';
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$itemId/stock/$warehouseRef';
       final response = await apiClient.put(url, body: {'items': items});
 
       if (response.statusCode == 200) {
-        return Product.fromJson(json.decode(response.body));
+        return Item.fromJson(json.decode(response.body));
       } else {
         final error = json.decode(response.body);
         throw Exception(error['detail'] ?? 'Failed to update stock');
@@ -93,9 +93,9 @@ class ProductService {
     }
   }
 
-  Future<Map<String, WarehouseStock>> getStock(String productId) async {
+  Future<Map<String, WarehouseStock>> getStock(String itemId) async {
     try {
-      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock';
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$itemId/stock';
       final response = await apiClient.get(url);
 
       if (response.statusCode == 200) {
@@ -115,9 +115,9 @@ class ProductService {
     }
   }
 
-  Future<void> removeStock(String productId, String warehouseRef) async {
+  Future<void> removeStock(String itemId, String warehouseRef) async {
     try {
-      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId/stock/$warehouseRef';
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$itemId/stock/$warehouseRef';
       final response = await apiClient.delete(url);
 
       if (response.statusCode != 204) {
@@ -128,17 +128,17 @@ class ProductService {
     }
   }
 
-  Future<void> deleteProduct(String productId) async {
+  Future<void> deleteItem(String itemId) async {
     try {
-      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$productId';
+      final url = '${ApiConfig.baseUrl}${ApiConfig.products}/$itemId';
       final response = await apiClient.delete(url);
 
       if (response.statusCode != 204) {
         final error = json.decode(response.body);
-        throw Exception(error['detail'] ?? 'Failed to delete product');
+        throw Exception(error['detail'] ?? 'Failed to delete item');
       }
     } catch (e) {
-      throw Exception('Error deleting product: $e');
+      throw Exception('Error deleting item: $e');
     }
   }
 }

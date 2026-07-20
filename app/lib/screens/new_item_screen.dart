@@ -4,22 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../models/product.dart';
+import '../models/item.dart';
 import '../services/auth_service.dart';
-import '../services/product_service.dart';
+import '../services/item_service.dart';
 import '../services/photo_service.dart';
+import '../services/category_service.dart';
 import '../services/api_client.dart';
 import '../widgets/container_selector.dart';
 import '../utils/container_memory.dart';
 
-class NewProductScreen extends StatefulWidget {
-  const NewProductScreen({super.key});
+class NewItemScreen extends StatefulWidget {
+  const NewItemScreen({super.key});
 
   @override
-  State<NewProductScreen> createState() => _NewProductScreenState();
+  State<NewItemScreen> createState() => _NewItemScreenState();
 }
 
-class _NewProductScreenState extends State<NewProductScreen> {
+class _NewItemScreenState extends State<NewItemScreen> {
   final _formKey = GlobalKey<FormState>();
   final _refController = TextEditingController();
   final _nameController = TextEditingController();
@@ -30,6 +31,8 @@ class _NewProductScreenState extends State<NewProductScreen> {
   File? _imageFile;
   String? _uploadedPhotoId;
   String? _selectedContainerRef;
+  List<String> _categories = [];
+  TextEditingController? _categoryFieldController;
   bool _isLoading = false;
   bool _isGeneratingId = false;
   bool _isUploadingPhoto = false;
@@ -37,7 +40,8 @@ class _NewProductScreenState extends State<NewProductScreen> {
   @override
   void initState() {
     super.initState();
-    _generateProductId();
+    _generateItemId();
+    _loadCategories();
   }
 
   @override
@@ -50,25 +54,43 @@ class _NewProductScreenState extends State<NewProductScreen> {
     super.dispose();
   }
 
-  void _generateProductId() {
+  void _generateItemId() {
     setState(() => _isGeneratingId = true);
     
     try {
-      // Get current year and month
       final now = DateTime.now();
       final yearMonth = '${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}';
-      
-      // Use timestamp-based counter (seconds + milliseconds for uniqueness)
       final counter = (now.second * 1000 + now.millisecond);
-      
-      // Generate product ID: AA-YYMM-XXXXXX
-      final productId = 'AA-$yearMonth-${counter.toString().padLeft(6, '0')}';
+      final itemId = 'AA-$yearMonth-${counter.toString().padLeft(6, '0')}';
       
       setState(() {
-        _refController.text = productId;
+        _refController.text = itemId;
       });
     } finally {
       setState(() => _isGeneratingId = false);
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final apiClient = ApiClient(authService);
+      final categoryService = CategoryService(apiClient);
+      var categories = await categoryService.getCategories();
+      
+      if (categories.isEmpty) {
+        final itemService = ItemService(apiClient);
+        final items = await itemService.getItems(limit: 100);
+        categories = await categoryService.extractCategoriesFromItems(items);
+      }
+      
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+        });
+      }
+    } catch (e) {
+      // Silently fail - categories will be empty
     }
   }
 
@@ -77,9 +99,9 @@ class _NewProductScreenState extends State<NewProductScreen> {
       final ImagePicker picker = ImagePicker();
       final XFile? photo = await picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 800,  // Reduced from 1920
-        maxHeight: 600,  // Reduced from 1080
-        imageQuality: 60,  // Reduced from 85
+        maxWidth: 800,
+        maxHeight: 600,
+        imageQuality: 60,
       );
 
       if (photo != null) {
@@ -89,28 +111,24 @@ class _NewProductScreenState extends State<NewProductScreen> {
           _isUploadingPhoto = true;
         });
 
-        // Upload photo to backend immediately
         try {
           final authService = Provider.of<AuthService>(context, listen: false);
           final apiClient = ApiClient(authService);
           final photoService = PhotoService(apiClient);
           
-          // Convert image to base64
           final bytes = await imageFile.readAsBytes();
           final base64Image = base64Encode(bytes);
           
-          // Check size and warn if too large
           final sizeInMB = bytes.length / (1024 * 1024);
           if (sizeInMB > 2) {
             throw Exception('Image too large (${sizeInMB.toStringAsFixed(1)}MB). Please try again.');
           }
           
-          // Upload to backend
           final uploadedPhoto = await photoService.uploadPhoto(
             filename: photo.name,
             contentType: 'image/jpeg',
             base64Data: base64Image,
-            description: 'Product photo',
+            description: 'Item photo',
           );
           
           if (mounted) {
@@ -163,7 +181,7 @@ class _NewProductScreenState extends State<NewProductScreen> {
     }
   }
 
-  Future<void> _saveProduct() async {
+  Future<void> _saveItem() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -171,7 +189,7 @@ class _NewProductScreenState extends State<NewProductScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final apiClient = ApiClient(authService);
-      final productService = ProductService(apiClient);
+      final itemService = ItemService(apiClient);
 
       double? price;
       if (_priceController.text.isNotEmpty) {
@@ -181,14 +199,19 @@ class _NewProductScreenState extends State<NewProductScreen> {
         }
       }
 
-      final product = Product(
+      final category = _categoryFieldController?.text.trim() ?? '';
+      if (category.isNotEmpty) {
+        await CategoryService.addToCache(category);
+      }
+
+      final item = Item(
         id: '',
         ref: _refController.text.trim(),
         label: _nameController.text.trim(),
+        category: category.isNotEmpty ? category : null,
         price: price ?? 0.0,
         barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
         description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-        type: '0',
         status: '1',
         statusBuy: '1',
         deleted: false,
@@ -196,18 +219,16 @@ class _NewProductScreenState extends State<NewProductScreen> {
         dateModification: DateTime.now(),
       );
 
-      final createdProduct = await productService.createProduct(product);
+      final createdItem = await itemService.createItem(item);
 
-      // Associate container with product if selected
       if (_selectedContainerRef != null) {
         try {
-          await productService.updateStock(createdProduct.id, _selectedContainerRef!, 1);
+          await itemService.updateStock(createdItem.id, _selectedContainerRef!, 1);
         } catch (e) {
-          // Container association failed, but product was created
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Product created but container association failed: $e'),
+                content: Text('Item created but container association failed: $e'),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -215,17 +236,15 @@ class _NewProductScreenState extends State<NewProductScreen> {
         }
       }
 
-      // Link photo to product if one was uploaded
       if (_uploadedPhotoId != null) {
         final photoService = PhotoService(apiClient);
         try {
-          await photoService.addPhotoToProduct(createdProduct.id, _uploadedPhotoId!);
+          await photoService.addPhotoToProduct(createdItem.id, _uploadedPhotoId!);
         } catch (e) {
-          // Photo linking failed, but product was created
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Product created but photo link failed: $e'),
+                content: Text('Item created but photo link failed: $e'),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -236,7 +255,7 @@ class _NewProductScreenState extends State<NewProductScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Product created successfully!'),
+            content: Text('Item created successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -246,9 +265,8 @@ class _NewProductScreenState extends State<NewProductScreen> {
       if (mounted) {
         String errorMessage = e.toString();
         
-        // Check if it's a duplicate ID conflict
         if (errorMessage.contains('already exists') || errorMessage.contains('duplicate')) {
-          errorMessage = 'Product ID already exists. Please use a different ID or click the refresh button to generate a new one.';
+          errorMessage = 'Item ID already exists. Please use a different ID or click the refresh button to generate a new one.';
         }
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -270,7 +288,7 @@ class _NewProductScreenState extends State<NewProductScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Product'),
+        title: const Text('New Item'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -279,7 +297,6 @@ class _NewProductScreenState extends State<NewProductScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Product Image
               GestureDetector(
                 onTap: _isUploadingPhoto ? null : _takePicture,
                 child: Container(
@@ -355,11 +372,10 @@ class _NewProductScreenState extends State<NewProductScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Product Reference (ID)
               TextFormField(
                 controller: _refController,
                 decoration: InputDecoration(
-                  labelText: 'Product ID / Reference *',
+                  labelText: 'Item ID / Reference *',
                   prefixIcon: const Icon(Icons.tag_rounded),
                   suffixIcon: _isGeneratingId
                       ? const SizedBox(
@@ -372,36 +388,87 @@ class _NewProductScreenState extends State<NewProductScreen> {
                         )
                       : IconButton(
                           icon: const Icon(Icons.refresh_rounded),
-                          onPressed: _generateProductId,
+                          onPressed: _generateItemId,
                           tooltip: 'Regenerate ID',
                         ),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Product ID is required';
+                    return 'Item ID is required';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 16),
 
-              // Product Name
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Product Name *',
+                  labelText: 'Item Name *',
                   prefixIcon: Icon(Icons.inventory_2_rounded),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Product name is required';
+                    return 'Item name is required';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 16),
 
-              // Barcode
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<String>.empty();
+                  }
+                  return _categories.where((String category) {
+                    return category.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                  });
+                },
+                onSelected: (String selection) {
+                  setState(() {
+                    _categoryFieldController?.text = selection;
+                  });
+                },
+                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  _categoryFieldController = controller;
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      labelText: 'Category (optional)',
+                      prefixIcon: Icon(Icons.category_rounded),
+                      helperText: 'Select from list or type new category',
+                    ),
+                  );
+                },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          children: options.map((String category) {
+                            return InkWell(
+                              onTap: () => onSelected(category),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(category),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+
               TextFormField(
                 controller: _barcodeController,
                 decoration: InputDecoration(
@@ -416,7 +483,6 @@ class _NewProductScreenState extends State<NewProductScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Container
               ContainerSelector(
                 value: _selectedContainerRef ?? ContainerMemory.lastContainerRef,
                 onChanged: (value) {
@@ -428,7 +494,6 @@ class _NewProductScreenState extends State<NewProductScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Price
               TextFormField(
                 controller: _priceController,
                 decoration: const InputDecoration(
@@ -440,7 +505,6 @@ class _NewProductScreenState extends State<NewProductScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Description
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
@@ -451,9 +515,8 @@ class _NewProductScreenState extends State<NewProductScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Save Button
               ElevatedButton(
-                onPressed: _isLoading ? null : _saveProduct,
+                onPressed: _isLoading ? null : _saveItem,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4CAF50),
                   foregroundColor: Colors.white,
@@ -467,7 +530,7 @@ class _NewProductScreenState extends State<NewProductScreen> {
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : const Text('Save Product', style: TextStyle(fontSize: 16)),
+                    : const Text('Save Item', style: TextStyle(fontSize: 16)),
               ),
             ],
           ),

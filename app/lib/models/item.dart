@@ -1,7 +1,8 @@
-class Product {
+class Item {
   final String id;
   final String ref;
   final String label;
+  final String? category;
   final double price;
   final String? barcode;
   final double? costPrice;
@@ -15,15 +16,16 @@ class Product {
   final DateTime dateCreation;
   final DateTime dateModification;
 
-  Product({
+  Item({
     required this.id,
     required this.ref,
     required this.label,
+    this.category,
     required this.price,
     this.barcode,
     this.costPrice,
     this.description,
-    required this.type,
+    this.type = '0',
     required this.status,
     required this.statusBuy,
     required this.deleted,
@@ -33,7 +35,7 @@ class Product {
     required this.dateModification,
   });
 
-  factory Product.fromJson(Map<String, dynamic> json) {
+  factory Item.fromJson(Map<String, dynamic> json) {
     Map<String, WarehouseStock>? stockWarehouse;
     if (json['stock_warehouse'] != null && json['stock_warehouse'] is Map) {
       stockWarehouse = {};
@@ -44,15 +46,16 @@ class Product {
       });
     }
 
-    return Product(
+    return Item(
       id: json['_id'] as String,
       ref: json['ref'] as String,
       label: json['label'] as String,
+      category: json['category'] as String?,
       price: _parseDouble(json['price']),
       barcode: json['barcode'] as String?,
       costPrice: json['cost_price'] != null ? _parseDouble(json['cost_price']) : null,
       description: json['description'] as String?,
-      type: json['type'] as String,
+      type: json['type'] as String? ?? '0',
       status: json['status'] as String,
       statusBuy: json['status_buy'] as String,
       deleted: json['deleted'] as bool,
@@ -72,6 +75,7 @@ class Product {
     return {
       'ref': ref,
       'label': label,
+      if (category != null && category!.isNotEmpty) 'category': category,
       'price': price,
       if (barcode != null && barcode!.isNotEmpty) 'barcode': barcode,
       if (costPrice != null) 'cost_price': costPrice,

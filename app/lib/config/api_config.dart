@@ -11,4 +11,5 @@ class ApiConfig {
   static const String products = '/products';
   static const String productById = '/products';
   static const String productByRef = '/products/ref';
+  static const String categories = '/products/categories';
 }

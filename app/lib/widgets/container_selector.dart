@@ -3,9 +3,8 @@ import '../models/warehouse.dart';
 import '../services/api_client.dart';
 import '../services/warehouse_service.dart';
 
-/// A cascading selector widget for choosing Warehouse > Location > Container
 class ContainerSelector extends StatefulWidget {
-  final String? value; // Selected container ref
+  final String? value;
   final ValueChanged<String?>? onChanged;
   final ApiClient apiClient;
   final String? labelText;
@@ -25,24 +24,20 @@ class ContainerSelector extends StatefulWidget {
 }
 
 class _ContainerSelectorState extends State<ContainerSelector> {
-  List<Warehouse> warehouses = [];
   List<Warehouse> locations = [];
   List<Warehouse> containers = [];
   
-  String? selectedWarehouseId;
   String? selectedLocationId;
   String? selectedContainerRef;
   
-  bool isLoadingWarehouses = false;
   bool isLoadingLocations = false;
   bool isLoadingContainers = false;
-  
   String? error;
 
   @override
   void initState() {
     super.initState();
-    _loadWarehouses();
+    _loadLocations();
     if (widget.value != null) {
       _initializeFromValue();
     }
@@ -52,32 +47,24 @@ class _ContainerSelectorState extends State<ContainerSelector> {
     if (widget.value == null) return;
     
     try {
-      // Find the container with this ref
       final allWarehouses = await WarehouseService.getWarehouses(widget.apiClient);
       final container = allWarehouses.firstWhere(
         (w) => w.ref == widget.value,
         orElse: () => throw Exception('Container not found'),
       );
       
-      // Get the hierarchy path
       final path = await WarehouseService.getHierarchyPath(
         widget.apiClient,
         container.id,
       );
       
-      if (path.isNotEmpty) {
-        final warehouse = path.first;
-        selectedWarehouseId = warehouse.id;
-        await _loadLocations(warehouse.id);
+      if (path.length > 1) {
+        final location = path[1];
+        selectedLocationId = location.id;
+        await _loadContainers(location.id);
         
-        if (path.length > 1) {
-          final location = path[1];
-          selectedLocationId = location.id;
-          await _loadContainers(location.id);
-          
-          if (path.length > 2) {
-            selectedContainerRef = path[2].ref;
-          }
+        if (path.length > 2) {
+          selectedContainerRef = path[2].ref;
         }
       }
     } catch (e) {
@@ -87,36 +74,7 @@ class _ContainerSelectorState extends State<ContainerSelector> {
     }
   }
 
-  Future<void> _loadWarehouses() async {
-    setState(() {
-      isLoadingWarehouses = true;
-      error = null;
-    });
-
-    try {
-      final result = await WarehouseService.getWarehousesByType(
-        widget.apiClient,
-        WarehouseType.warehouse,
-      );
-      setState(() {
-        warehouses = result.where((w) => w.status && !w.deleted).toList();
-        isLoadingWarehouses = false;
-        
-        // Auto-select if only one warehouse
-        if (warehouses.length == 1 && selectedWarehouseId == null) {
-          selectedWarehouseId = warehouses.first.id;
-          _loadLocations(selectedWarehouseId!);
-        }
-      });
-    } catch (e) {
-      setState(() {
-        error = 'Failed to load warehouses: $e';
-        isLoadingWarehouses = false;
-      });
-    }
-  }
-
-  Future<void> _loadLocations(String warehouseId) async {
+  Future<void> _loadLocations() async {
     setState(() {
       isLoadingLocations = true;
       locations = [];
@@ -127,15 +85,30 @@ class _ContainerSelectorState extends State<ContainerSelector> {
     });
 
     try {
+      final warehouses = await WarehouseService.getWarehousesByType(
+        widget.apiClient,
+        WarehouseType.warehouse,
+      );
+      
+      if (warehouses.isEmpty) {
+        setState(() {
+          isLoadingLocations = false;
+          error = 'No warehouses found';
+        });
+        return;
+      }
+      
+      final warehouseId = warehouses.first.id;
+      
       final result = await WarehouseService.getChildren(
         widget.apiClient,
         warehouseId,
       );
+      
       setState(() {
         locations = result.where((w) => w.status && !w.deleted).toList();
         isLoadingLocations = false;
         
-        // Auto-select if only one location
         if (locations.length == 1 && selectedLocationId == null) {
           selectedLocationId = locations.first.id;
           _loadContainers(selectedLocationId!);
@@ -162,11 +135,11 @@ class _ContainerSelectorState extends State<ContainerSelector> {
         widget.apiClient,
         locationId,
       );
+      
       setState(() {
         containers = result.where((w) => w.status && !w.deleted).toList();
         isLoadingContainers = false;
         
-        // Auto-select if only one container
         if (containers.length == 1 && selectedContainerRef == null) {
           selectedContainerRef = containers.first.ref;
           widget.onChanged?.call(selectedContainerRef);
@@ -182,14 +155,6 @@ class _ContainerSelectorState extends State<ContainerSelector> {
 
   String _getFullPath() {
     final parts = <String>[];
-    
-    if (selectedWarehouseId != null) {
-      final warehouse = warehouses.firstWhere(
-        (w) => w.id == selectedWarehouseId,
-        orElse: () => throw Exception('Warehouse not found'),
-      );
-      parts.add(warehouse.label);
-    }
     
     if (selectedLocationId != null) {
       final location = locations.firstWhere(
@@ -224,34 +189,6 @@ class _ContainerSelectorState extends State<ContainerSelector> {
             ),
           ),
         
-        // Warehouse selector
-        DropdownButtonFormField<String>(
-          decoration: const InputDecoration(
-            labelText: 'Warehouse',
-            border: OutlineInputBorder(),
-          ),
-          value: selectedWarehouseId,
-          items: warehouses.map((warehouse) {
-            return DropdownMenuItem(
-              value: warehouse.id,
-              child: Text(warehouse.label),
-            );
-          }).toList(),
-          onChanged: widget.enabled
-              ? (value) {
-                  if (value != null) {
-                    setState(() {
-                      selectedWarehouseId = value;
-                    });
-                    _loadLocations(value);
-                  }
-                }
-              : null,
-        ),
-        
-        const SizedBox(height: 12),
-        
-        // Location selector
         DropdownButtonFormField<String>(
           decoration: const InputDecoration(
             labelText: 'Location',
@@ -264,7 +201,7 @@ class _ContainerSelectorState extends State<ContainerSelector> {
               child: Text(location.label),
             );
           }).toList(),
-          onChanged: widget.enabled && selectedWarehouseId != null
+          onChanged: widget.enabled
               ? (value) {
                   if (value != null) {
                     setState(() {
@@ -278,7 +215,6 @@ class _ContainerSelectorState extends State<ContainerSelector> {
         
         const SizedBox(height: 12),
         
-        // Container selector
         DropdownButtonFormField<String>(
           decoration: const InputDecoration(
             labelText: 'Container',
@@ -315,7 +251,6 @@ class _ContainerSelectorState extends State<ContainerSelector> {
               : null,
         ),
         
-        // Full path display
         if (selectedContainerRef != null) ...[
           const SizedBox(height: 12),
           Container(
@@ -346,7 +281,6 @@ class _ContainerSelectorState extends State<ContainerSelector> {
           ),
         ],
         
-        // Error display
         if (error != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -358,8 +292,7 @@ class _ContainerSelectorState extends State<ContainerSelector> {
           ),
         ],
         
-        // Loading indicators
-        if (isLoadingWarehouses || isLoadingLocations || isLoadingContainers) ...[
+        if (isLoadingLocations || isLoadingContainers) ...[
           const SizedBox(height: 8),
           const LinearProgressIndicator(),
         ],

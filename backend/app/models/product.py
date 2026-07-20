@@ -36,6 +36,7 @@ class ProductBase(BaseModel):
     barcode: Optional[str] = Field(default=None, description="Product barcode (EAN-13)")
     cost_price: Optional[float] = Field(default=None, description="Cost/purchase price", ge=0)
     description: Optional[str] = Field(default=None, description="Product description")
+    category: Optional[str] = Field(default=None, description="Item category")
     status: str = Field(default="1", description="Product status: 0=disabled, 1=enabled")
     status_buy: str = Field(default="1", description="Can be purchased: 0=no, 1=yes")
     
@@ -237,6 +238,7 @@ class ProductUpdate(BaseModel):
     barcode: Optional[str] = None
     cost_price: Optional[float] = None
     description: Optional[str] = None
+    category: Optional[str] = None
     status: Optional[str] = None
     status_buy: Optional[str] = None
     stock_warehouse: Optional[Dict[str, Dict[str, float]]] = None

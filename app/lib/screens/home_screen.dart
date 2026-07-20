@@ -6,9 +6,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
 import '../config/api_config.dart';
-import 'products_screen.dart';
-import 'new_product_screen.dart';
-import 'stock_screen.dart';
+import 'items_screen.dart';
+import 'new_item_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -144,14 +143,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       _MenuButton(
                         icon: Icons.inventory_2_rounded,
-                        title: 'Products',
-                        subtitle: 'View all products',
+                        title: 'Items',
+                        subtitle: 'View all items',
                         color: const Color(0xFF00BCD4),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ProductsScreen(),
+                              builder: (context) => const ItemsScreen(),
                             ),
                           );
                         },
@@ -159,29 +158,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 16),
                       _MenuButton(
                         icon: Icons.add_circle_rounded,
-                        title: 'New Product',
-                        subtitle: 'Create new product',
+                        title: 'New Item',
+                        subtitle: 'Create new item',
                         color: const Color(0xFF4CAF50),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const NewProductScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _MenuButton(
-                        icon: Icons.warehouse_rounded,
-                        title: 'Stock Management',
-                        subtitle: 'Manage inventory',
-                        color: const Color(0xFFFF9800),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const StockScreen(),
+                              builder: (context) => const NewItemScreen(),
                             ),
                           );
                         },

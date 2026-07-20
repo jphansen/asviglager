@@ -2,24 +2,25 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/product.dart';
+import '../models/item.dart';
 import '../models/photo.dart';
 import '../services/auth_service.dart';
-import '../services/product_service.dart';
+import '../services/item_service.dart';
 import '../services/photo_service.dart';
 import '../services/warehouse_service.dart';
 import '../services/api_client.dart';
-import 'edit_product_screen.dart';
+import 'edit_item_screen.dart';
 
-class ProductsScreen extends StatefulWidget {
-  const ProductsScreen({super.key});
+class ItemsScreen extends StatefulWidget {
+  const ItemsScreen({super.key});
 
   @override
-  State<ProductsScreen> createState() => _ProductsScreenState();
+  State<ItemsScreen> createState() => _ItemsScreenState();
 }
 
-class _ProductsScreenState extends State<ProductsScreen> {
-  List<Product> _products = [];
+class _ItemsScreenState extends State<ItemsScreen> {
+  List<Item> _items = [];
+  List<Item> _filteredItems = [];
   bool _isLoading = true;
   String? _error;
   final TextEditingController _searchController = TextEditingController();
@@ -28,7 +29,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _loadItems();
+    _searchController.addListener(_filterItems);
   }
 
   @override
@@ -37,7 +39,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadProducts({String? search}) async {
+  Future<void> _loadItems({String? search}) async {
     setState(() {
       _isLoading = true;
       _error = null;
@@ -46,15 +48,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final apiClient = ApiClient(authService);
-      final productService = ProductService(apiClient);
-      final products = await productService.getProducts(limit: 100, search: search);
+      final itemService = ItemService(apiClient);
+      final items = await itemService.getItems(limit: 100, search: search);
 
       if (mounted) {
         setState(() {
-          _products = products;
+          _items = items;
+          _filteredItems = items;
           _isLoading = false;
         });
-        _loadContainerPaths(products);
+        _loadContainerPaths(items);
       }
     } catch (e) {
       if (mounted) {
@@ -66,15 +69,43 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  Future<void> _loadContainerPaths(List<Product> products) async {
+  void _filterItems() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredItems = _items;
+      } else {
+        _filteredItems = _items.where((item) {
+          if (item.ref.toLowerCase().contains(query)) return true;
+          if (item.label.toLowerCase().contains(query)) return true;
+          if (item.barcode?.toLowerCase().contains(query) ?? false) return true;
+          if (item.category?.toLowerCase().contains(query) ?? false) return true;
+          
+          final stock = item.stockWarehouse;
+          if (stock != null && stock.isNotEmpty) {
+            for (final containerRef in stock.keys) {
+              if (containerRef.toLowerCase().contains(query)) return true;
+              if (_containerPaths[containerRef]?.toLowerCase().contains(query) ?? false) {
+                return true;
+              }
+            }
+          }
+          return false;
+        }).toList();
+      }
+    });
+  }
+
+  Future<void> _loadContainerPaths(List<Item> items) async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final apiClient = ApiClient(authService);
       final allWarehouses = await WarehouseService.getWarehouses(apiClient);
 
       final paths = <String, String>{};
-      for (final product in products) {
-        final stock = product.stockWarehouse;
+      
+      for (final item in items) {
+        final stock = item.stockWarehouse;
         if (stock == null || stock.isEmpty) continue;
         for (final containerRef in stock.keys) {
           if (paths.containsKey(containerRef)) continue;
@@ -95,17 +126,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
 
       if (mounted) {
-        setState(() => _containerPaths = paths);
+        setState(() {
+          _containerPaths = paths;
+        });
+        _filterItems();
       }
     } catch (_) {}
   }
 
-  Future<void> _deleteProduct(Product product) async {
+  Future<void> _deleteItem(Item item) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Product'),
-        content: Text('Are you sure you want to delete "${product.label}"? This action cannot be undone.'),
+        title: const Text('Delete Item'),
+        content: Text('Are you sure you want to delete "${item.label}"? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -125,24 +159,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final apiClient = ApiClient(authService);
-      final productService = ProductService(apiClient);
+      final itemService = ItemService(apiClient);
       
-      await productService.deleteProduct(product.id);
+      await itemService.deleteItem(item.id);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Product deleted successfully'),
+            content: Text('Item deleted successfully'),
             backgroundColor: Colors.green,
           ),
         );
-        _loadProducts();
+        _loadItems();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error deleting product: $e'),
+            content: Text('Error deleting item: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -150,8 +184,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  String _getContainerLabel(Product product) {
-    final stock = product.stockWarehouse;
+  String _getContainerLabel(Item item) {
+    final stock = item.stockWarehouse;
     if (stock == null || stock.isEmpty) return '';
     final ref = stock.keys.first;
     return _containerPaths[ref] ?? ref;
@@ -161,7 +195,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Products'),
+        title: const Text('Items'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -169,7 +203,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search products...',
+                hintText: 'Search items, containers, locations...',
                 prefixIcon: Icon(
                   Icons.search_rounded,
                   color: Theme.of(context).colorScheme.primary,
@@ -179,12 +213,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         icon: const Icon(Icons.clear_rounded),
                         onPressed: () {
                           _searchController.clear();
-                          _loadProducts();
+                          _filterItems();
                         },
                       )
                     : null,
               ),
-              onSubmitted: (value) => _loadProducts(search: value),
             ),
           ),
         ),
@@ -212,7 +245,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             Text('Error: $_error'),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadProducts,
+              onPressed: _loadItems,
               child: const Text('Retry'),
             ),
           ],
@@ -220,7 +253,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       );
     }
 
-    if (_products.isEmpty) {
+    if (_filteredItems.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -232,7 +265,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No products found',
+              'No items found',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ],
@@ -241,37 +274,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadProducts,
+      onRefresh: _loadItems,
       child: ListView.builder(
-        itemCount: _products.length,
+        itemCount: _filteredItems.length,
         itemBuilder: (context, index) {
-          final product = _products[index];
+          final item = _filteredItems[index];
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              leading: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.secondary,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  product.ref.substring(0, 2),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
+              leading: _buildLeadingThumbnail(item),
               title: Text(
-                product.label,
+                item.label,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               subtitle: Padding(
@@ -280,17 +294,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   children: [
                     Expanded(
                       child: (() {
-                        final containerLabel = _getContainerLabel(product);
+                        final containerLabel = _getContainerLabel(item);
                         final containerPart = containerLabel.isNotEmpty ? ' • $containerLabel' : '';
+                        final categoryPart = item.category != null && item.category!.isNotEmpty ? ' • ${item.category}' : '';
                         return Text(
-                          '${product.ref}$containerPart • ${product.price.toStringAsFixed(2)} DKK',
+                          '${item.ref}$containerPart$categoryPart • ${item.price.toStringAsFixed(2)} DKK',
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                           ),
                         );
                       })(),
                     ),
-                    if (product.photos != null && product.photos!.isNotEmpty)
+                    if (item.photos != null && item.photos!.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
@@ -307,7 +322,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${product.photos!.length}',
+                              '${item.photos!.length}',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Theme.of(context).colorScheme.secondary,
@@ -323,7 +338,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (product.barcode != null)
+                  if (item.barcode != null)
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -341,7 +356,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     icon: const Icon(Icons.more_vert),
                     onSelected: (value) async {
                       if (value == 'delete') {
-                        await _deleteProduct(product);
+                        await _deleteItem(item);
                       }
                     },
                     itemBuilder: (BuildContext context) => [
@@ -351,7 +366,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           children: [
                             Icon(Icons.delete, color: Colors.red),
                             SizedBox(width: 8),
-                            Text('Delete Product', style: TextStyle(color: Colors.red)),
+                            Text('Delete Item', style: TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
@@ -359,7 +374,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ),
                 ],
               ),
-              onTap: () => _showProductDetails(product),
+              onTap: () => _showItemDetails(item),
             ),
           );
         },
@@ -367,36 +382,114 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  void _showProductDetails(Product product) {
+  Widget _buildLeadingThumbnail(Item item) {
+    if (item.photos != null && item.photos!.isNotEmpty) {
+      return FutureBuilder<Photo>(
+        future: _loadPhoto(item.photos!.first),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+
+          if (snapshot.hasError || !snapshot.hasData) {
+            return _buildFallbackIcon(item);
+          }
+
+          final photo = snapshot.data!;
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              _base64ToImage(photo.data),
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+            ),
+          );
+        },
+      );
+    }
+
+    return _buildFallbackIcon(item);
+  }
+
+  Widget _buildFallbackIcon(Item item) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).colorScheme.primary,
+            Theme.of(context).colorScheme.secondary,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        item.ref.substring(0, 2),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+      ),
+    );
+  }
+
+  Future<Photo> _loadPhoto(String photoId) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final apiClient = ApiClient(authService);
+    final photoService = PhotoService(apiClient);
+    return await photoService.getPhoto(photoId);
+  }
+
+  Uint8List _base64ToImage(String base64String) {
+    return base64Decode(base64String);
+  }
+
+  void _showItemDetails(Item item) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(product.label),
+        title: Text(item.label),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Display photos if available
-              if (product.photos != null && product.photos!.isNotEmpty)
-                _buildPhotoGallery(product.photos!),
-              _DetailRow('Reference:', product.ref),
+              if (item.photos != null && item.photos!.isNotEmpty)
+                _buildPhotoGallery(item.photos!),
+              _DetailRow('Reference:', item.ref),
+              if (item.category != null && item.category!.isNotEmpty)
+                _DetailRow('Category:', item.category!),
               () {
-                final containerLabel = _getContainerLabel(product);
+                final containerLabel = _getContainerLabel(item);
                 if (containerLabel.isNotEmpty) {
                   return _DetailRow('Container:', containerLabel);
                 }
                 return const SizedBox.shrink();
               }(),
-              _DetailRow('Price:', '${product.price.toStringAsFixed(2)} DKK'),
-              if (product.barcode != null)
-                _DetailRow('Barcode:', product.barcode!),
-              if (product.costPrice != null)
-                _DetailRow('Cost:', '${product.costPrice!.toStringAsFixed(2)} DKK'),
-              if (product.description != null && product.description!.isNotEmpty)
-                _DetailRow('Description:', product.description!),
-              _DetailRow('Type:', product.type == '0' ? 'Product' : 'Service'),
-              _DetailRow('Status:', product.status == '1' ? 'Active' : 'Inactive'),
+              _DetailRow('Price:', '${item.price.toStringAsFixed(2)} DKK'),
+              if (item.barcode != null)
+                _DetailRow('Barcode:', item.barcode!),
+              if (item.costPrice != null)
+                _DetailRow('Cost:', '${item.costPrice!.toStringAsFixed(2)} DKK'),
+              if (item.description != null && item.description!.isNotEmpty)
+                _DetailRow('Description:', item.description!),
+              _DetailRow('Status:', item.status == '1' ? 'Active' : 'Inactive'),
             ],
           ),
         ),
@@ -411,11 +504,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EditProductScreen(product: product),
+                  builder: (context) => EditItemScreen(item: item),
                 ),
               );
               if (result == true) {
-                _loadProducts();
+                _loadItems();
               }
             },
             icon: const Icon(Icons.edit),
@@ -501,17 +594,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
         );
       },
     );
-  }
-
-  Future<Photo> _loadPhoto(String photoId) async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final apiClient = ApiClient(authService);
-    final photoService = PhotoService(apiClient);
-    return await photoService.getPhoto(photoId);
-  }
-
-  Uint8List _base64ToImage(String base64String) {
-    return base64Decode(base64String);
   }
 
   void _showFullPhoto(Photo photo) {

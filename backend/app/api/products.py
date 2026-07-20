@@ -24,6 +24,22 @@ class StockUpdate(BaseModel):
     items: float = Field(..., description="Number of items in stock")
 
 
+@router.get("/categories", response_model=List[str])
+async def list_categories(
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """Get list of distinct categories from all non-deleted products."""
+    db = MongoDB.get_db()
+    products_collection = db.products
+    
+    categories = await products_collection.distinct("category", {"deleted": False})
+    
+    # Filter out None/empty values and sort
+    categories = sorted([c for c in categories if c])
+    
+    return categories
+
+
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
     product: ProductCreate,
